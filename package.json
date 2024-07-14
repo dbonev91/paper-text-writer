@@ -1,0 +1,41 @@
+{
+  "name": "paper-text-writer",
+  "version": "1.0.0",
+  "description": "The speditor econt admin be app for paper",
+  "main": "dist/app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tsc": "tsc",
+    "dev": "cross-env BLURPAPER_ORIGIN=http://localhost:4200 BLURPAPER_MONGO_SSL_PATH=undefined ts-node-dev --respawn --transpileOnly ./src/app/app.ts",
+    "prod": "tsc && cross-env BLURPAPER_ORIGIN=http://blurpaper.com BLURPAPER_MONGO_SSL_PATH=/etc/ssl/private/mongo/",
+    "start-prod": "tsc && node dist/paper-text-writer/src/app/app.js",
+    "start-dev": "nodemon -e ts --exec 'tsc && node dist/paper-text-writer/src/app/app.js'",
+    "start": "npm-run-all --parallel watch:build watch:server --print-label",
+    "watch:build": "tsc --watch",
+    "watch:server": "nodemon dist/app.js --watch dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dbonev91/paper-text-writer.git"
+  },
+  "author": "Dimitar Bonev",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dbonev91/paper-text-writer/issues"
+  },
+  "homepage": "https://github.com/dbonev91/paper-text-writer#readme",
+  "devDependencies": {
+    "@types/cors": "^2.8.12",
+    "@types/express": "^4.17.14",
+    "@types/node": "^18.6.1",
+    "cross-env": "^7.0.2",
+    "nodemon": "^2.0.4",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^4.8.3"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "express": "^4.17.1"
+  }
+}
