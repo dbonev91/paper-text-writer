@@ -3,13 +3,14 @@ import { httpsAgent } from "../../helpers/https.helper";
 import { URLFormatter } from '../../../../../../paper-node-configuration/src/shared/classes/url-formatter.class';
 import { IDrawerSettingsResponse } from "../../models/drawer-settings-response.interface";
 import { IFileBufferInput } from "../../models/file-buffer-input.interface";
+import { ITextMeasureResponse } from "../../models/text-measure-response.interface";
 
 export default class CanvasService extends URLFormatter {
   constructor () {
     super(process.env.PROTOCOL, process.env.LINK_TO_PAPER_NODE_CANVAS, Number(process.env.PAPER_NODE_CANVAS_PORT));
   }
 
-  measureText (id: string, text: string) {
+  measureText (id: string, text: string): Promise<AxiosResponse<ITextMeasureResponse>> {
     return axios.get(
       `${this.url}/measure-text/${id}?drawerText=${text}`, {
         httpsAgent

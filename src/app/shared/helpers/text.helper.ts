@@ -12,6 +12,8 @@ import { ITextRowGenerateData } from "../models/text-row-generate-data.interface
 import CanvasService from "../services/canvas/canvas.service";
 import { placeShy, SHY, NEW, INV, DEFAULT_SPECIAL_SYMBOL_VALUE_MAP, SPECIAL_SYMBOL_MAP, EMPTY_SPECIAL_SYMBOL_VALUE_MAP, SPACE } from "./string/string.helper";
 import { IDrawerSettingsResponse } from "../models/drawer-settings-response.interface";
+import PDFService from "../services/pdf/pdf.service";
+import { GenerationTypeEnum } from "../enums/generation-type.enum";
 
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
   const groupedNewLines: ITextPart[] = [];
@@ -134,11 +136,14 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
 
 export const writeTextInsideBox = async (
   allTextPartsWithDashes: ITextPart[],
+  generationType: GenerationTypeEnum,
+  processId: string,
   textBox: ICoordinate,
   fontSize: number,
   startHeight: number,
   drawerId: string,
   canvasService: CanvasService,
+  pdfService: PDFService,
   currentPage: number,
   currentTextIndex: number[],
   lineHeight?: number
@@ -158,7 +163,16 @@ export const writeTextInsideBox = async (
     let textPartSizes: ISizes;
 
     try {
-      textPartSizes = await measureTheTextWidthAndHeight(drawerId, fontSize, currentTextPart, canvasService, EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
+      textPartSizes = await measureTheTextWidthAndHeight(
+        generationType,
+        drawerId,
+        processId,
+        fontSize,
+        currentTextPart,
+        canvasService,
+        pdfService,
+        EMPTY_SPECIAL_SYMBOL_VALUE_MAP
+      );
     } catch (error) {
       throw error;
     }
@@ -290,7 +304,15 @@ export const writeTextInsideBox = async (
       let currentTextPartSizes: ISizes;
 
       try {
-        currentTextPartSizes = await measureTheTextWidthAndHeight(drawerId, fontSize, textPart, canvasService);
+        currentTextPartSizes = await measureTheTextWidthAndHeight(
+          generationType,
+          drawerId,
+          processId,
+          fontSize,
+          textPart,
+          canvasService,
+          pdfService
+        );
       } catch (error) {
         throw error;
       }
@@ -320,7 +342,15 @@ export const writeTextInsideBox = async (
         let currentTextPartSizes: ISizes;
   
         try {
-          currentTextPartSizes = await measureTheTextWidthAndHeight(drawerId, fontSize, textPart, canvasService);
+          currentTextPartSizes = await measureTheTextWidthAndHeight(
+            generationType,
+            drawerId,
+            processId,
+            fontSize,
+            textPart,
+            canvasService,
+            pdfService
+          );
         } catch (error) {
           throw error;
         }
@@ -338,7 +368,15 @@ export const writeTextInsideBox = async (
       let textPartMeasure: ISizes;
       
       try {
-        textPartMeasure = await measureTheTextWidthAndHeight(drawerId, fontSize, textPartObject, canvasService);
+        textPartMeasure = await measureTheTextWidthAndHeight(
+          generationType,
+          drawerId,
+          processId,
+          fontSize,
+          textPartObject,
+          canvasService,
+          pdfService
+        );
       } catch (error) {
         throw error;
       }
@@ -375,17 +413,33 @@ export const writeTextInsideBox = async (
         throw error;
       }
 
+      const currentTop: number = getCurrentTop(
+        i,
+        currentLineHeight,
+        startHeight,
+        textRowData[i]?.margin?.top || 0,
+        textRowData
+      );
+      const text: string = formatSpecialSymbolsText(textPartObject.text);
+
       try {
-        await canvasService.fillTextOnDrawer(
-          drawerId,
-          formatSpecialSymbolsText(textPartObject.text),
-          prefixSpace + left,
-          getCurrentTop(
-            i,
-            currentLineHeight,
-            startHeight,
-            textRowData[i]?.margin?.top || 0,
-            textRowData
+        await (generationType === GenerationTypeEnum.CANVAS ?
+          canvasService.fillTextOnDrawer(
+            drawerId,
+            text,
+            prefixSpace + left,
+            currentTop
+          ) :
+          pdfService.writeText(
+            processId,
+            currentPage,
+            text,
+            prefixSpace + left,
+            textBox.height - currentTop - (textRowData[i]?.fontSize || currentLineHeight),
+            fontSize,
+            0,
+            0,
+            0
           )
         )
       } catch (error) {
@@ -455,30 +509,32 @@ const getDrawerObjectSettings = async (
 
 
 const measureTheTextWidthAndHeight = async (
+  generationType: GenerationTypeEnum,
   drawerId: string,
+  processId: string,
   fontSize: number,
   currentTextPart: ITextPart,
   canvasService: CanvasService,
+  pdfService: PDFService,
   specialSymbolValueMap: Record<string, string> = DEFAULT_SPECIAL_SYMBOL_VALUE_MAP
 ) => {
-  try {
-    await canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, currentTextPart));
-  } catch (error) {
-    throw error;
+  if (generationType === GenerationTypeEnum.CANVAS) {
+    try {
+      await canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, currentTextPart));
+    } catch (error) {
+      throw error;
+    }
   }
 
-  try {
-    const textMeasureAxiosResponse: AxiosResponse<ITextMeasureResponse> =
-      await canvasService.measureText(
-        drawerId,
-        `|-|${formatSpecialSymbolsText(currentTextPart.text, specialSymbolValueMap)}-|-`
-      );
-    
-    if (!textMeasureAxiosResponse || !textMeasureAxiosResponse.data || !textMeasureAxiosResponse.data.sizes) {
-      throw Error('There are no sizes as a response');
-    }
+  const text: string = `|-|${formatSpecialSymbolsText(currentTextPart.text, specialSymbolValueMap)}-|-`;
 
-    return textMeasureAxiosResponse.data.sizes;
+  try {
+    return (
+      await (generationType === GenerationTypeEnum.CANVAS ?
+        canvasService.measureText(drawerId, text) :
+        pdfService.measureText(processId, fontSize, text)
+      )
+    ).data.sizes;
   } catch (error) {
     throw error;
   }
@@ -488,24 +544,6 @@ const attachInitialTextObject = (textRowData: ITextRowGenerateData[], index: num
   if (!textRowData[index]) {
     textRowData[index] = JSON.parse(JSON.stringify(INITIAL_TEXT_ROW_DATA_OBJECT));
   }
-}
-
-export const measureTextWidthAndHeight = (
-  ctx: CanvasRenderingContext2D,
-  textPart: ITextPart,
-  inheritFontSize: number,
-  specialSymbolValueMap: Record<string, string> = DEFAULT_SPECIAL_SYMBOL_VALUE_MAP
-): ISizes => {
-  ctx.font = getCtxFont(inheritFontSize, textPart);
-
-  const textMetrics: TextMetrics = ctx.measureText(
-    formatSpecialSymbolsText(textPart.text, specialSymbolValueMap)
-  );
-
-  return {
-    width: textMetrics.width,
-    height: textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent
-  };
 }
 
 export const formatSpecialSymbolsText = (

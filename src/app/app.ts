@@ -8,6 +8,8 @@ import { DRAWER_ID_PARAM, sentanceIdPageMap, sentanceIdsByPageMap } from "./shar
 import { ITextPart } from "./shared/models/text-part.interface";
 import { ICoordinate } from "./shared/models/coordinate.interface";
 import CanvasService from "./shared/services/canvas/canvas.service";
+import PDFService from "./shared/services/pdf/pdf.service";
+import { GenerationTypeEnum } from "./shared/enums/generation-type.enum";
 
 const app: express.Application = express();
 const paperConfiguration: PaperConfiguration = new PaperConfiguration(process.env as IEnv, app);
@@ -19,6 +21,7 @@ app.use(express.json({limit: '500mb'}));
 app.use(express.urlencoded({limit: '500mb'}));
 
 const canvasService: CanvasService = new CanvasService();
+const pdfService: PDFService = new PDFService();
 
 app.get(
   "/edno",
@@ -155,16 +158,30 @@ app.post(
       });
     }
 
+    const processId: string = request.body.processId as string;
+
+    if (!processId) {
+      return response.status(400).json({
+        status: 'error',
+        message: 'processId should be provided'
+      });
+    }
+
+    const generationType: GenerationTypeEnum = request.body.generationType as GenerationTypeEnum;
+
     try {
       return response.status(200).json({
         status: 'error',
         currentTextIndex: (await writeTextInsideBox(
           allTextPartsWithDashes,
+          generationType,
+          processId,
           textBox,
           fontSize,
           startHeight,
           request.params[DRAWER_ID_PARAM],
           canvasService,
+          pdfService,
           currentPage,
           currentTextIndex,
           request.body.lineHeight
