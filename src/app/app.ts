@@ -10,6 +10,8 @@ import { ICoordinate } from "./shared/models/coordinate.interface";
 import CanvasService from "./shared/services/canvas/canvas.service";
 import PDFService from "./shared/services/pdf/pdf.service";
 import { GenerationTypeEnum } from "./shared/enums/generation-type.enum";
+import { IFontData } from "./shared/models/font-data.interface";
+
 
 const app: express.Application = express();
 const paperConfiguration: PaperConfiguration = new PaperConfiguration(process.env as IEnv, app);
@@ -167,7 +169,13 @@ app.post(
       });
     }
 
+    const fontData: IFontData = request.body.fontData as IFontData;
     const generationType: GenerationTypeEnum = request.body.generationType as GenerationTypeEnum;
+    const r: number | undefined = request.body.r ? Number(request.body.r) : undefined;
+    const g: number | undefined = request.body.g ? Number(request.body.g) : undefined;
+    const b: number | undefined = request.body.b ? Number(request.body.b) : undefined;
+
+    console.log('HERE');
 
     try {
       return response.status(200).json({
@@ -178,12 +186,16 @@ app.post(
           processId,
           textBox,
           fontSize,
+          fontData,
           startHeight,
           request.params[DRAWER_ID_PARAM],
           canvasService,
           pdfService,
           currentPage,
           currentTextIndex,
+          r,
+          g,
+          b,
           request.body.lineHeight
         ))
       });

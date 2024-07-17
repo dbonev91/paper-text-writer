@@ -26,7 +26,7 @@ export default class CanvasService extends URLFormatter {
     );
   }
 
-  getDrawerObjectSettings (id: string): Promise<AxiosResponse<IDrawerSettingsResponse>> {
+  getDrawerObjectSettings (id: string): Promise<AxiosResponse<IDrawerSettingsResponse<CanvasRenderingContext2D>>> {
     return axios.get(
       `${this.url}/get-drawer-object-settings/${id}`, {
         httpsAgent

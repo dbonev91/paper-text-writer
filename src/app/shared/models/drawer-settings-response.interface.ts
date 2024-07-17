@@ -1,3 +1,3 @@
-export interface IDrawerSettingsResponse {
-  settings: CanvasRenderingContext2D;
+export interface IDrawerSettingsResponse<T> {
+  settings: T;
 }

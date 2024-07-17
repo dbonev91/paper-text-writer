@@ -14,6 +14,8 @@ import { placeShy, SHY, NEW, INV, DEFAULT_SPECIAL_SYMBOL_VALUE_MAP, SPECIAL_SYMB
 import { IDrawerSettingsResponse } from "../models/drawer-settings-response.interface";
 import PDFService from "../services/pdf/pdf.service";
 import { GenerationTypeEnum } from "../enums/generation-type.enum";
+import { IFontData } from "../models/font-data.interface";
+import { IPDFObjectSettings } from "../models/pdf-object-settings.interface";
 
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
   const groupedNewLines: ITextPart[] = [];
@@ -140,12 +142,16 @@ export const writeTextInsideBox = async (
   processId: string,
   textBox: ICoordinate,
   fontSize: number,
+  fontData: IFontData,
   startHeight: number,
   drawerId: string,
   canvasService: CanvasService,
   pdfService: PDFService,
   currentPage: number,
   currentTextIndex: number[],
+  r?: number,
+  g?: number,
+  b?: number,
   lineHeight?: number
 ): Promise<number[]> => {
   let textRowIndex: number = 0;
@@ -168,6 +174,7 @@ export const writeTextInsideBox = async (
         drawerId,
         processId,
         fontSize,
+        fontData,
         currentTextPart,
         canvasService,
         pdfService,
@@ -309,6 +316,7 @@ export const writeTextInsideBox = async (
           drawerId,
           processId,
           fontSize,
+          fontData,
           textPart,
           canvasService,
           pdfService
@@ -347,6 +355,7 @@ export const writeTextInsideBox = async (
             drawerId,
             processId,
             fontSize,
+            fontData,
             textPart,
             canvasService,
             pdfService
@@ -373,6 +382,7 @@ export const writeTextInsideBox = async (
           drawerId,
           processId,
           fontSize,
+          fontData,
           textPartObject,
           canvasService,
           pdfService
@@ -394,21 +404,25 @@ export const writeTextInsideBox = async (
       let oldFillStyle: string;
 
       try {
-        oldFillStyle = (await getDrawerObjectSettings(drawerId, canvasService)).fillStyle as string;
+        oldFillStyle = (await getDrawerObjectSettings(drawerId, processId, canvasService, pdfService, generationType)).fillStyle as string;
       } catch (error) {
         throw error;
       }
 
       if (textPartObject.text === INV) {
         try {
-          await canvasService.changeDrawerObjectSettings(drawerId, undefined, 'transparent');
+          await (generationType === GenerationTypeEnum.CANVAS ?
+            canvasService.changeDrawerObjectSettings(drawerId, undefined, 'transparent') :
+            pdfService.changeDrawerObjectSettings(processId, 255, 255, 255))
         } catch (error) {
           throw error;
         }
       }
 
       try {
-        await canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, textPartObject));
+        await (generationType === GenerationTypeEnum.CANVAS ?
+          canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, textPartObject)) :
+          pdfService.changeDrawerObjectSettings(processId, undefined, undefined, undefined, textRowData[i]?.fontSize || currentLineHeight, getPDFFont(textPartObject, fontData)));
       } catch (error) {
         throw error;
       }
@@ -432,14 +446,10 @@ export const writeTextInsideBox = async (
           ) :
           pdfService.writeText(
             processId,
-            currentPage,
             text,
             prefixSpace + left,
             textBox.height - currentTop - (textRowData[i]?.fontSize || currentLineHeight),
-            fontSize,
-            0,
-            0,
-            0
+            currentPage,
           )
         )
       } catch (error) {
@@ -449,14 +459,16 @@ export const writeTextInsideBox = async (
       let currentFillStyle: string;
 
       try {
-        currentFillStyle = (await getDrawerObjectSettings(drawerId, canvasService)).fillStyle as string;
+        currentFillStyle = (await getDrawerObjectSettings(drawerId, processId, canvasService, pdfService, generationType)).fillStyle as string;
       } catch (error) {
         throw error;
       }
 
       if (oldFillStyle !== currentFillStyle) {
         try {
-          await canvasService.changeDrawerObjectSettings(drawerId, undefined, oldFillStyle);
+          await (generationType === GenerationTypeEnum.CANVAS ?
+            canvasService.changeDrawerObjectSettings(drawerId, undefined, oldFillStyle) :
+            pdfService.changeDrawerObjectSettings(processId, 0, 0, 0, textRowData[i]?.fontSize || currentLineHeight, getPDFFont(textPartObject, fontData)))
         } catch (error) {
           throw error;
         }
@@ -492,16 +504,33 @@ const getCurrentTop = (
 
 const getDrawerObjectSettings = async (
   drawerId: string,
-  canvasService: CanvasService
+  proccessId: string,
+  canvasService: CanvasService,
+  pdfService: PDFService,
+  generationType: GenerationTypeEnum
 ): Promise<CanvasRenderingContext2D> => {
   try {
-    const drawerObjectSettings: AxiosResponse<IDrawerSettingsResponse> = await canvasService.getDrawerObjectSettings(drawerId);
+    if (generationType == GenerationTypeEnum.CANVAS) {
+      const drawerObjectSettings: AxiosResponse<IDrawerSettingsResponse<CanvasRenderingContext2D>> = await canvasService.getDrawerObjectSettings(drawerId);
     
-    if (!drawerObjectSettings || !drawerObjectSettings.data || !drawerObjectSettings.data.settings) {
-      throw Error('There are no any drawer settings')
-    }
+      if (!drawerObjectSettings || !drawerObjectSettings.data || !drawerObjectSettings.data.settings) {
+        throw Error('There are no any drawer settings');
+      }
+  
+      return drawerObjectSettings.data.settings;
+    } else {
+      const drawerObjectSettings: AxiosResponse<IDrawerSettingsResponse<IPDFObjectSettings>> = await pdfService.getDrawerObjectSettings(proccessId);
 
-    return drawerObjectSettings.data.settings;
+      if (!drawerObjectSettings || !drawerObjectSettings.data || !drawerObjectSettings.data.settings) {
+        throw Error('There are no any drawer settings');
+      }
+
+      const settings: IPDFObjectSettings = drawerObjectSettings.data.settings;
+
+      return {
+        fillStyle: `${settings.r}${settings.g}${settings.b}${settings.fontFamilyPath}${settings.fontSize}`
+      } as CanvasRenderingContext2D
+    }
   } catch (error) {
     throw error;
   }
@@ -513,17 +542,20 @@ const measureTheTextWidthAndHeight = async (
   drawerId: string,
   processId: string,
   fontSize: number,
+  fontData: IFontData,
   currentTextPart: ITextPart,
   canvasService: CanvasService,
   pdfService: PDFService,
   specialSymbolValueMap: Record<string, string> = DEFAULT_SPECIAL_SYMBOL_VALUE_MAP
 ) => {
-  if (generationType === GenerationTypeEnum.CANVAS) {
-    try {
-      await canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, currentTextPart));
-    } catch (error) {
-      throw error;
-    }
+  try {
+    await (generationType === GenerationTypeEnum.CANVAS ?
+      canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, currentTextPart)) :
+      pdfService.changeDrawerObjectSettings(processId, undefined, undefined, undefined, currentTextPart?.fontSize || fontSize, getPDFFont(currentTextPart, fontData)))
+  } catch (error) {
+    console.log('error');
+    console.log(error);
+    throw error;
   }
 
   const text: string = `|-|${formatSpecialSymbolsText(currentTextPart.text, specialSymbolValueMap)}-|-`;
@@ -578,6 +610,30 @@ export const getCtxFont = (
   }
 
   return `${Object.keys(fontStylingMap).join(' ')} ${textPart.fontSize || inheritFontSize}px ${textPart.fontSerif ? FontSerifEnum.SERIF : FontSerifEnum.SANS_SERIF}`;
+}
+
+export const getPDFFont = (
+  textPart: ITextPart,
+  fontData: IFontData
+): string => {
+  const fontStyle: string = getFontStyle(textPart);
+  return `${fontData.directory}/${fontData.name}/${fontStyle}/${fontData.name}-${fontStyle}.${fontData.extension}`;
+}
+
+export const getFontStyle = (textPart: ITextPart): string => {
+  if (textPart.isBold && textPart.isItalic) {
+    return `${FontStyleEnum.BOLD}${FontStyleEnum.ITALIC}`;
+  }
+
+  if (textPart.isBold) {
+    return FontStyleEnum.BOLD;
+  }
+
+  if (textPart.isItalic) {
+    return FontStyleEnum.ITALIC;
+  }
+
+  return FontStyleEnum.REGULAR;
 }
 
 export const newRowText = (index: number, text: string, prefix?: string ): string =>

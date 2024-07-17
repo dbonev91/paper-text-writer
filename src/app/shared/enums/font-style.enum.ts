@@ -1,5 +1,6 @@
 export enum FontStyleEnum {
-  NORMAL = 'normal',
-  BOLD = 'bold',
-  ITALIC = 'italic'
+  REGULAR = 'Regular',
+  NORMAL = 'Normal',
+  BOLD = 'Bold',
+  ITALIC = 'Italic'
 }
