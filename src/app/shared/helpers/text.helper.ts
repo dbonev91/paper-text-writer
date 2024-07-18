@@ -429,7 +429,7 @@ export const writeTextInsideBox = async (
       try {
         await (generationType === GenerationTypeEnum.CANVAS ?
           canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, textPartObject)) :
-          pdfService.changeDrawerObjectSettings(processId, undefined, undefined, undefined, textRowData[i]?.fontSize || currentLineHeight, getPDFFont(textPartObject, fontData)));
+          pdfService.changeDrawerObjectSettings(processId, undefined, undefined, undefined, textRowData[i]?.fontSize || fontSize, getPDFFont(textPartObject, fontData)));
       } catch (error) {
         throw error;
       }
@@ -453,7 +453,7 @@ export const writeTextInsideBox = async (
             textPartObject.image.width,
             textPartObject.image.height,
             (textBox.width / 2) - (textPartObject.image.width / 2),
-            textBox.height - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight)
+            textBox.height - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)
           )
         } else {
           await (generationType === GenerationTypeEnum.CANVAS ?
@@ -467,7 +467,7 @@ export const writeTextInsideBox = async (
               processId,
               text,
               prefixSpace + left,
-              textBox.height + paddingBottom - currentTop - (textRowData[i]?.fontSize || currentLineHeight),
+              textBox.height + paddingBottom - currentTop - (textRowData[i]?.fontSize || fontSize),
               currentPage,
             )
           )
@@ -488,7 +488,7 @@ export const writeTextInsideBox = async (
         try {
           await (generationType === GenerationTypeEnum.CANVAS ?
             canvasService.changeDrawerObjectSettings(drawerId, undefined, oldFillStyle) :
-            pdfService.changeDrawerObjectSettings(processId, 0, 0, 0, textRowData[i]?.fontSize || currentLineHeight, getPDFFont(textPartObject, fontData)))
+            pdfService.changeDrawerObjectSettings(processId, 0, 0, 0, textRowData[i]?.fontSize || fontSize, getPDFFont(textPartObject, fontData)))
         } catch (error) {
           throw error;
         }
