@@ -1,3 +1,4 @@
+import { ISentanceImage } from "./sentance.interface";
 import { IMargin } from "./text-part-margin.interface";
 import { ITextPart } from "./text-part.interface";
 
@@ -9,5 +10,6 @@ export interface ITextRowGenerateData {
   margin?: IMargin;
   isNewSentanceStart?: boolean;
   shouldStartOnTheNextPage?: boolean;
+  image?: ISentanceImage;
   textParts: ITextPart[];
 }

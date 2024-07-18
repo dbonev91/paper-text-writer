@@ -5,5 +5,12 @@ export interface ISentance {
   isCentered?: boolean;
   shouldTextTransfer?: boolean;
   newLineAutoPrefix?: string;
+  image?: ISentanceImage;
   textParts: ITextPart[];
+}
+
+export interface ISentanceImage {
+  file: number[];
+  width: number;
+  height: number;
 }

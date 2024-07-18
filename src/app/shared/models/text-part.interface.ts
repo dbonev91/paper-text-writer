@@ -1,3 +1,4 @@
+import { ISentanceImage } from "./sentance.interface";
 import { IMargin } from "./text-part-margin.interface";
 
 export interface ITextPart {
@@ -16,4 +17,5 @@ export interface ITextPart {
   fontSize?: number;
   fontSerif?: boolean;
   margin?: IMargin;
+  image?: ISentanceImage;
 }

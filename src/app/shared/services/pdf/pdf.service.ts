@@ -4,6 +4,7 @@ import { httpsAgent } from "../../helpers/https.helper";
 import { ITextMeasureResponse } from "../../models/text-measure-response.interface";
 import { IPDFObjectSettings } from "../../models/pdf-object-settings.interface";
 import { IDrawerSettingsResponse } from "../../models/drawer-settings-response.interface";
+import { ImageTypeEnum } from "../../enums/image-type.enum";
 
 export default class PDFService extends URLFormatter {
   constructor () {
@@ -51,5 +52,29 @@ export default class PDFService extends URLFormatter {
       `${this.url}/get-drawer-settings/${id}`,
       { httpsAgent }
     );
+  }
+
+  addImage (
+    id: string,
+    imageType: ImageTypeEnum,
+    image: number[],
+    pageIndex: number,
+    width: number,
+    height: number,
+    x: number,
+    y: number
+  ): Promise<AxiosResponse<any>> {
+    return axios.post(
+      `${this.url}/add-image-to-pdf-page/${id}`,
+      {
+        imageType,
+        image,
+        pageIndex,
+        width,
+        height,
+        x,
+        y,
+      },
+      { httpsAgent });
   }
 }

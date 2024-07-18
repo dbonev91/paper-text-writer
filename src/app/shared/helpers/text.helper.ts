@@ -16,6 +16,7 @@ import PDFService from "../services/pdf/pdf.service";
 import { GenerationTypeEnum } from "../enums/generation-type.enum";
 import { IFontData } from "../models/font-data.interface";
 import { IPDFObjectSettings } from "../models/pdf-object-settings.interface";
+import { ImageTypeEnum } from "../enums/image-type.enum";
 
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
   const groupedNewLines: ITextPart[] = [];
@@ -211,6 +212,11 @@ export const writeTextInsideBox = async (
         (Number(textRowData[textRowIndex].fontSize) > currentTextPart.fontSize) ?
           textRowData[textRowIndex].fontSize :
           currentTextPart.fontSize;
+    }
+
+    if (textRowData[textRowIndex] && currentTextPart.image) {
+      console.log(currentTextPart.image);
+      textRowData[textRowIndex].image = currentTextPart.image;
     }
 
     if (
@@ -437,21 +443,34 @@ export const writeTextInsideBox = async (
       const text: string = formatSpecialSymbolsText(textPartObject.text);
 
       try {
-        await (generationType === GenerationTypeEnum.CANVAS ?
-          canvasService.fillTextOnDrawer(
-            drawerId,
-            text,
-            prefixSpace + left,
-            currentTop
-          ) :
-          pdfService.writeText(
+        if (textPartObject.image) {
+          await pdfService.addImage(
             processId,
-            text,
-            prefixSpace + left,
-            textBox.height - currentTop - (textRowData[i]?.fontSize || currentLineHeight),
+            ImageTypeEnum.PNG,
+            textPartObject.image.file,
             currentPage,
+            textPartObject.image.width,
+            textPartObject.image.height,
+            (textBox.width / 2) - (textPartObject.image.width / 2),
+            textBox.height - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight)
           )
-        )
+        } else {
+          await (generationType === GenerationTypeEnum.CANVAS ?
+            canvasService.fillTextOnDrawer(
+              drawerId,
+              text,
+              prefixSpace + left,
+              currentTop
+            ) :
+            pdfService.writeText(
+              processId,
+              text,
+              prefixSpace + left,
+              textBox.height - currentTop - (textRowData[i]?.fontSize || currentLineHeight),
+              currentPage,
+            )
+          )
+        }
       } catch (error) {
         throw error;
       }
@@ -494,8 +513,8 @@ const getCurrentTop = (
   for (let i = index - 1; i >= (stopIndex || 0); i -= 1) {
     height += (
       (textRowData[i] && textRowData[i].isNewSentanceStart) ?
-        currentLineHeight :
-        (textRowData[i]?.fontSize || currentLineHeight)
+        textRowData[i]?.image?.height || currentLineHeight :
+        (textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight)
       );
   }
   
@@ -548,6 +567,13 @@ const measureTheTextWidthAndHeight = async (
   pdfService: PDFService,
   specialSymbolValueMap: Record<string, string> = DEFAULT_SPECIAL_SYMBOL_VALUE_MAP
 ) => {
+  if (currentTextPart.image) {
+    return {
+      width: currentTextPart.image.width,
+      height: currentTextPart.image.height
+    };
+  }
+
   try {
     await (generationType === GenerationTypeEnum.CANVAS ?
       canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, currentTextPart)) :
