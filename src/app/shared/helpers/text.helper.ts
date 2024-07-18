@@ -452,8 +452,8 @@ export const writeTextInsideBox = async (
             currentPage,
             textPartObject.image.width,
             textPartObject.image.height,
-            (textBox.width / 2) - (textPartObject.image.width / 2),
-            textBox.height - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)
+            textBox.left + ((textBox.width / 2) - (textPartObject.image.width / 2)),
+            textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)
           )
         } else {
           await (generationType === GenerationTypeEnum.CANVAS ?
