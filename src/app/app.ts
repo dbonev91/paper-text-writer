@@ -174,6 +174,7 @@ app.post(
     const r: number | undefined = request.body.r ? Number(request.body.r) : undefined;
     const g: number | undefined = request.body.g ? Number(request.body.g) : undefined;
     const b: number | undefined = request.body.b ? Number(request.body.b) : undefined;
+    const paddingBottom: number | undefined = request.body.paddingBottom ? Number(request.body.paddingBottom) : undefined;
 
     console.log('HERE');
 
@@ -193,6 +194,7 @@ app.post(
           pdfService,
           currentPage,
           currentTextIndex,
+          paddingBottom,
           r,
           g,
           b,

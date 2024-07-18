@@ -150,6 +150,7 @@ export const writeTextInsideBox = async (
   pdfService: PDFService,
   currentPage: number,
   currentTextIndex: number[],
+  paddingBottom: number = 0,
   r?: number,
   g?: number,
   b?: number,
@@ -157,7 +158,7 @@ export const writeTextInsideBox = async (
 ): Promise<number[]> => {
   let textRowIndex: number = 0;
   let currentWidth: number = 0;
-  let currentHeight: number = startHeight;
+  let currentHeight: number = startHeight || textBox.top;
   const currentLineHeight: number = (lineHeight || fontSize);
 
   const textRowData: ITextRowGenerateData[] = [];
@@ -247,7 +248,7 @@ export const writeTextInsideBox = async (
         i &&
         (
           shouldJumpToTheNextPage ||
-          (currentHeight + getCurrentTop(textRowIndex, currentLineHeight, startHeight, textRowData[textRowIndex]?.margin?.top || 0, textRowData, textRowIndex - 2) >= textBox.height)
+          ((currentHeight - (startHeight || textBox.top)) + getCurrentTop(textRowIndex, currentLineHeight, startHeight || textBox.top, textRowData[textRowIndex]?.margin?.top || 0, textRowData, textRowIndex - 2) >= textBox.height)
         )
       ) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
@@ -260,7 +261,7 @@ export const writeTextInsideBox = async (
 
       if (textRowData[textRowIndex].textParts.length) {
         textRowIndex += 1;
-        currentHeight = getCurrentTop(textRowIndex, currentLineHeight, startHeight, textRowData[textRowIndex]?.margin?.top || 0, textRowData);
+        currentHeight = getCurrentTop(textRowIndex, currentLineHeight, startHeight || textBox.top, textRowData[textRowIndex]?.margin?.top || 0, textRowData);
         currentWidth = isNewLine ? 0 : textPartSizes.width;
       } else {
         delete lastLineIndexMap[textRowIndex];
@@ -376,7 +377,7 @@ export const writeTextInsideBox = async (
 
     const prefixSpace: number = entireTextWidth ? (textBox.width - entireTextWidth) / 2 : 0;
 
-    let left: number = 0;
+    let left: number = textBox.left;
 
     for (let j = 0; j < textRow.textParts.length; j += 1) {
       const textPartObject: ITextPart = textRow.textParts[j];
@@ -436,7 +437,7 @@ export const writeTextInsideBox = async (
       const currentTop: number = getCurrentTop(
         i,
         currentLineHeight,
-        startHeight,
+        startHeight || textBox.top,
         textRowData[i]?.margin?.top || 0,
         textRowData
       );
@@ -466,7 +467,7 @@ export const writeTextInsideBox = async (
               processId,
               text,
               prefixSpace + left,
-              textBox.height - currentTop - (textRowData[i]?.fontSize || currentLineHeight),
+              textBox.height + paddingBottom - currentTop - (textRowData[i]?.fontSize || currentLineHeight),
               currentPage,
             )
           )
