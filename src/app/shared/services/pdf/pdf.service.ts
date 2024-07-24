@@ -5,6 +5,8 @@ import { ITextMeasureResponse } from "../../models/text-measure-response.interfa
 import { IPDFObjectSettings } from "../../models/pdf-object-settings.interface";
 import { IDrawerSettingsResponse } from "../../models/drawer-settings-response.interface";
 import { ImageTypeEnum } from "../../enums/image-type.enum";
+import { IMeasureAllTextPartsRequestData } from "../../models/measure-all-text-parts-request-data.interface";
+import { IPDFGenerativeData } from "../../models/pdf-generative-data.interface";
 
 export default class PDFService extends URLFormatter {
   constructor () {
@@ -76,5 +78,26 @@ export default class PDFService extends URLFormatter {
         y,
       },
       { httpsAgent });
+  }
+
+  measureMultipleTextParts (
+    id: string,
+    allTextParts: IMeasureAllTextPartsRequestData
+  ): Promise<AxiosResponse<any>> {
+    return axios.post(
+      `${this.url}/measure-multiple-text-parts/${id}`,
+      { allTextParts },
+      { httpsAgent }
+    )
+  }
+
+  arrangePDFParts (
+    id: string,
+    pdfPartsData: IPDFGenerativeData
+  ): Promise<AxiosResponse<any>> {
+    return axios.post(`${this.url}/arrange-pdf-from-parts/${id}`,
+      { 'pdf-parts': pdfPartsData },
+      { httpsAgent }
+    )
   }
 }

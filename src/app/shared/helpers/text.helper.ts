@@ -1,22 +1,23 @@
 import { AxiosResponse } from "axios";
-import { INITIAL_TEXT_ROW_DATA_OBJECT, sentanceIdPageMap, sentanceIdsByPageMap } from "../constants";
+import { DEFAULT_FONT_DATA, INITIAL_TEXT_ROW_DATA_OBJECT, sentanceIdPageMap, sentanceIdsByPageMap } from "../constants";
 import { FontSerifEnum } from "../enums/font-serif.enum";
 import { FontStyleEnum } from "../enums/font-style.enum";
 import { ICoordinate } from "../models/coordinate.interface";
 import { ISentance } from "../models/sentance.interface";
 import { ISizes } from "../models/sizes.interface";
-import { ITextMeasureResponse } from "../models/text-measure-response.interface";
 import { IMargin } from "../models/text-part-margin.interface";
 import { ITextPart } from "../models/text-part.interface";
 import { ITextRowGenerateData } from "../models/text-row-generate-data.interface";
 import CanvasService from "../services/canvas/canvas.service";
-import { placeShy, SHY, NEW, INV, DEFAULT_SPECIAL_SYMBOL_VALUE_MAP, SPECIAL_SYMBOL_MAP, EMPTY_SPECIAL_SYMBOL_VALUE_MAP, SPACE } from "./string/string.helper";
-import { IDrawerSettingsResponse } from "../models/drawer-settings-response.interface";
+import { placeShy, SHY, NEW, INV, DEFAULT_SPECIAL_SYMBOL_VALUE_MAP, SPECIAL_SYMBOL_MAP, EMPTY_SPECIAL_SYMBOL_VALUE_MAP, getProperSize, fontMapKey } from "./string/string.helper";
 import PDFService from "../services/pdf/pdf.service";
-import { GenerationTypeEnum } from "../enums/generation-type.enum";
 import { IFontData } from "../models/font-data.interface";
-import { IPDFObjectSettings } from "../models/pdf-object-settings.interface";
-import { ImageTypeEnum } from "../enums/image-type.enum";
+import { ITextGeneratveInput } from '../models/text-generative-input.interface';
+import { IPDFGenerativeData, IPDFPageData } from '../models/pdf-generative-data.interface';
+import { PageNumberPlacementEnum } from "../enums/page-number-placement.enum";
+import { directoryPathToFontData } from "./object/object.helper";
+import { IMeasureAllTextPartsRequestData } from "../models/measure-all-text-parts-request-data.interface";
+import { ISizesData, ISizesResponse } from "../models/sizes-response.interface";
 
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
   const groupedNewLines: ITextPart[] = [];
@@ -137,25 +138,161 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
   return allTextPartsWithDashes;
 }
 
+export const collectTextGenerativeInstructions = async (
+  id: string,
+  input: ITextGeneratveInput,
+  canvasService: CanvasService,
+  pdfService: PDFService
+) => {
+  let allTextPartsWithDashes: ITextPart[] = prepareAllTextWithDashes(input.sentences);
+  const fontData: IFontData = directoryPathToFontData(input.fontFilePaths.stringPaths[input.fontFamily]) || DEFAULT_FONT_DATA;
+  const measureAllTextPartsRequestData: IMeasureAllTextPartsRequestData = {
+    textData: allTextPartsWithDashes.map((textPart: ITextPart, index: number) => {
+      allTextPartsWithDashes[index].index = index;
+      return {
+        text: formatSpecialSymbolsText(textPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP),
+        isBold: textPart.isBold,
+        isItalic: textPart.isItalic,
+        fontSize: textPart.fontSize
+      }
+    }),
+    fontData,
+    fontSize: input.fontSize
+  };
+
+  let sizesResponse: AxiosResponse<ISizesResponse>;
+
+  try {
+    sizesResponse = await pdfService.measureMultipleTextParts(id, measureAllTextPartsRequestData);
+  } catch (error) {
+    throw error;
+  }
+
+  if (!sizesResponse || !sizesResponse.data) {
+    throw Error('No sizes data');
+  }
+
+  let currentTextIndex: number[] = [0];
+  let currentIndex: number = 0;
+  let currentPage: number = 0;
+
+  const pdfGenerativeData: IPDFGenerativeData = {
+    pages: [],
+    generalSettings: {
+      id,
+      sizes: {
+        width: input.width,
+        height: input.height
+      },
+      fontData,
+      fontSize: input.fontSize
+    },
+    pageNumberSettings: {
+      placement: PageNumberPlacementEnum.CENTER,
+      fontSize: input.fontSize,
+      paddingTop: input.pageNumbersPaddingTop,
+      startFromPage: input.pageNumbersFromPage
+    }
+  };
+
+  let left: number = input.left;
+  let right: number = input.right;
+
+  // TODO: for canvas should variate for each while iteration
+  // the reason is it multiplys the margin
+  // if same text is on two or more pages
+  const drawerId: string = `${Math.random()}`.split('.')[1];
+
+  while ((currentIndex === 0) || (currentIndex <= allTextPartsWithDashes.length)) {
+    if (input.mirrorMargin) {
+      left = (currentPage % 2) ? input.left - input.mirrorMargin : input.left + input.mirrorMargin;
+      right = (currentPage % 2) ? input.right + input.mirrorMargin : input.right - input.mirrorMargin;
+    }
+
+    const textBox: ICoordinate = {
+      top: input.top,
+      left: left,
+      width: input.width - (left + right),
+      height: input.height - input.bottom
+    };
+
+    const slicedTextParts: ITextPart[] = allTextPartsWithDashes.slice(currentIndex);
+
+    // if (generationType === GenerationTypeEnum.CANVAS) {
+    //   await firstValueFrom(
+    //     this.canvasService.changeDrawerObjectSettings(
+    //       drawerId,
+    //       `normal ${fontSize}px serif`,
+    //       'black',
+    //       'left',
+    //       'top'
+    //     )
+    //   );
+    // }
+
+    pdfGenerativeData.pages[currentPage] = {
+      coordinateText: []
+    }
+    
+    try {
+      currentTextIndex = await writeTextInsideBox(
+        slicedTextParts,
+        textBox,
+        input.fontSize,
+        input.startHeight,
+        drawerId,
+        currentPage,
+        currentTextIndex,
+        sizesResponse.data.data,
+        pdfGenerativeData.pages[currentPage],
+        input.bottom,
+        input.lineHeight
+      );
+    } catch (error) {
+      throw error;
+    }
+
+    if (!currentTextIndex[0]) {
+      break;
+    }
+
+    currentIndex += currentTextIndex[0];
+    currentPage += 1;
+  }
+
+  try {
+    await pdfService.arrangePDFParts(
+      id,
+      pdfGenerativeData
+    );   
+  } catch (error) {
+    console.log(error)
+  }
+
+  return pdfGenerativeData;
+}
+
 export const writeTextInsideBox = async (
   allTextPartsWithDashes: ITextPart[],
-  generationType: GenerationTypeEnum,
-  processId: string,
   textBox: ICoordinate,
   fontSize: number,
-  fontData: IFontData,
   startHeight: number,
   drawerId: string,
-  canvasService: CanvasService,
-  pdfService: PDFService,
   currentPage: number,
   currentTextIndex: number[],
+  sizesData: ISizesData,
+  pageGenerativeData: IPDFPageData,
   paddingBottom: number = 0,
-  r?: number,
-  g?: number,
-  b?: number,
   lineHeight?: number
 ): Promise<number[]> => {
+  if (!sentanceIdsByPageMap[drawerId]) {
+    sentanceIdsByPageMap[drawerId] = {};
+  }
+
+  if (!sentanceIdPageMap[drawerId]) {
+    sentanceIdPageMap[drawerId] = {};
+  }
+
   let textRowIndex: number = 0;
   let currentWidth: number = 0;
   let currentHeight: number = startHeight || textBox.top;
@@ -168,28 +305,12 @@ export const writeTextInsideBox = async (
   for (let i = 0; i < allTextPartsWithDashes.length; i += 1) {
     const previousTextPart: ITextPart = allTextPartsWithDashes[i - 1];
     const currentTextPart: ITextPart = allTextPartsWithDashes[i];
-    let textPartSizes: ISizes;
-
-    try {
-      textPartSizes = await measureTheTextWidthAndHeight(
-        generationType,
-        drawerId,
-        processId,
-        fontSize,
-        fontData,
-        currentTextPart,
-        canvasService,
-        pdfService,
-        EMPTY_SPECIAL_SYMBOL_VALUE_MAP
-      );
-    } catch (error) {
-      throw error;
-    }
+    currentTextPart.sizes = getProperSize(formatSpecialSymbolsText(currentTextPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[currentTextPart.index || 0], EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
 
     const previousText: string = previousTextPart ? previousTextPart.text : '';
     
     if (currentTextPart.text !== NEW && currentTextPart.text !== SHY) {
-      currentWidth += textPartSizes.width;
+      currentWidth += currentTextPart.sizes.width;
     }
 
     const isNewLine: boolean = (currentTextPart.text.indexOf(NEW) >= 0);
@@ -216,7 +337,6 @@ export const writeTextInsideBox = async (
     }
 
     if (textRowData[textRowIndex] && currentTextPart.image) {
-      console.log(currentTextPart.image);
       textRowData[textRowIndex].image = currentTextPart.image;
     }
 
@@ -262,7 +382,7 @@ export const writeTextInsideBox = async (
       if (textRowData[textRowIndex].textParts.length) {
         textRowIndex += 1;
         currentHeight = getCurrentTop(textRowIndex, currentLineHeight, startHeight || textBox.top, textRowData[textRowIndex]?.margin?.top || 0, textRowData);
-        currentWidth = isNewLine ? 0 : textPartSizes.width;
+        currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
       } else {
         delete lastLineIndexMap[textRowIndex];
       }
@@ -315,24 +435,17 @@ export const writeTextInsideBox = async (
 
     for (let i = 0; i < textRow.textParts.length; i += 1) {
       const textPart: ITextPart = textRow.textParts[i];
-      let currentTextPartSizes: ISizes;
 
-      try {
-        currentTextPartSizes = await measureTheTextWidthAndHeight(
-          generationType,
-          drawerId,
-          processId,
-          fontSize,
-          fontData,
-          textPart,
-          canvasService,
-          pdfService
-        );
-      } catch (error) {
-        throw error;
+      textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text), sizesData.outputSizes[textPart.index || 0]);
+      
+      if (textPart.text === SHY) {
+        textPart.sizes = sizesData.dashSizesMap[fontMapKey({
+          ...textPart,
+          fontSize: textPart.fontSize || fontSize
+        })];
       }
 
-      textWidth += currentTextPartSizes.width;
+      textWidth += (textPart.sizes as ISizes).width;
     }
 
     const difference: number = textBox.width - textWidth;
@@ -354,24 +467,17 @@ export const writeTextInsideBox = async (
     if (textRow.textParts && textRow.textParts.length && textRow.textParts[0].isCentered) {
       for (let i = 0; i < textRow.textParts.length; i += 1) {
         const textPart: ITextPart = textRow.textParts[i];
-        let currentTextPartSizes: ISizes;
-  
-        try {
-          currentTextPartSizes = await measureTheTextWidthAndHeight(
-            generationType,
-            drawerId,
-            processId,
-            fontSize,
-            fontData,
-            textPart,
-            canvasService,
-            pdfService
-          );
-        } catch (error) {
-          throw error;
+      
+        textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text), sizesData.outputSizes[textPart.index || 0]);
+      
+        if (textPart.text === SHY) {
+          textPart.sizes = sizesData.dashSizesMap[fontMapKey({
+            ...textPart,
+            fontSize: textPart.fontSize || fontSize
+          })];
         }
 
-        entireTextWidth += currentTextPartSizes.width;
+        entireTextWidth += (textPart.sizes as ISizes).width;
       }
     }
 
@@ -381,21 +487,14 @@ export const writeTextInsideBox = async (
 
     for (let j = 0; j < textRow.textParts.length; j += 1) {
       const textPartObject: ITextPart = textRow.textParts[j];
-      let textPartMeasure: ISizes;
+
+      textPartObject.sizes = getProperSize(formatSpecialSymbolsText(textPartObject.text), sizesData.outputSizes[textPartObject.index || 0]);
       
-      try {
-        textPartMeasure = await measureTheTextWidthAndHeight(
-          generationType,
-          drawerId,
-          processId,
-          fontSize,
-          fontData,
-          textPartObject,
-          canvasService,
-          pdfService
-        );
-      } catch (error) {
-        throw error;
+      if (textPartObject.text === SHY) {
+        textPartObject.sizes = sizesData.dashSizesMap[fontMapKey({
+          ...textPartObject,
+          fontSize: textPartObject.fontSize || fontSize
+        })];
       }
       
       const isASpace: boolean = textPartObject.text === ' ';
@@ -408,32 +507,6 @@ export const writeTextInsideBox = async (
         left += justifyStep[i];
       }
 
-      let oldFillStyle: string;
-
-      try {
-        oldFillStyle = (await getDrawerObjectSettings(drawerId, processId, canvasService, pdfService, generationType)).fillStyle as string;
-      } catch (error) {
-        throw error;
-      }
-
-      if (textPartObject.text === INV) {
-        try {
-          await (generationType === GenerationTypeEnum.CANVAS ?
-            canvasService.changeDrawerObjectSettings(drawerId, undefined, 'transparent') :
-            pdfService.changeDrawerObjectSettings(processId, 255, 255, 255))
-        } catch (error) {
-          throw error;
-        }
-      }
-
-      try {
-        await (generationType === GenerationTypeEnum.CANVAS ?
-          canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, textPartObject)) :
-          pdfService.changeDrawerObjectSettings(processId, undefined, undefined, undefined, textRowData[i]?.fontSize || fontSize, getPDFFont(textPartObject, fontData)));
-      } catch (error) {
-        throw error;
-      }
-
       const currentTop: number = getCurrentTop(
         i,
         currentLineHeight,
@@ -444,57 +517,25 @@ export const writeTextInsideBox = async (
       const text: string = formatSpecialSymbolsText(textPartObject.text);
 
       try {
-        if (textPartObject.image) {
-          await pdfService.addImage(
-            processId,
-            ImageTypeEnum.PNG,
-            textPartObject.image.file,
-            currentPage,
-            textPartObject.image.width,
-            textPartObject.image.height,
-            textBox.left + ((textBox.width / 2) - (textPartObject.image.width / 2)),
-            textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)
-          )
-        } else {
-          await (generationType === GenerationTypeEnum.CANVAS ?
-            canvasService.fillTextOnDrawer(
-              drawerId,
-              text,
-              prefixSpace + left,
-              currentTop
-            ) :
-            pdfService.writeText(
-              processId,
-              text,
-              prefixSpace + left,
-              textBox.height + paddingBottom - currentTop - (textRowData[i]?.fontSize || fontSize),
-              currentPage,
-            )
-          )
-        }
+        const color: number = textPartObject.text === INV ? 255 : 0;
+        pageGenerativeData.coordinateText.push({
+          fontSize: textPartObject.fontSize,
+          text,
+          page: currentPage,
+          x: textPartObject.image ? (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2))) : prefixSpace + left,
+          y: textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize),
+          r: color,
+          g: color,
+          b: color,
+          image: textPartObject.image,
+          isBold: textPartObject.isBold,
+          isItalic: textPartObject.isItalic
+        });
       } catch (error) {
         throw error;
       }
 
-      let currentFillStyle: string;
-
-      try {
-        currentFillStyle = (await getDrawerObjectSettings(drawerId, processId, canvasService, pdfService, generationType)).fillStyle as string;
-      } catch (error) {
-        throw error;
-      }
-
-      if (oldFillStyle !== currentFillStyle) {
-        try {
-          await (generationType === GenerationTypeEnum.CANVAS ?
-            canvasService.changeDrawerObjectSettings(drawerId, undefined, oldFillStyle) :
-            pdfService.changeDrawerObjectSettings(processId, 0, 0, 0, textRowData[i]?.fontSize || fontSize, getPDFFont(textPartObject, fontData)))
-        } catch (error) {
-          throw error;
-        }
-      }
-
-      left += textPartMeasure.width;
+      left += (textPartObject.sizes as ISizes).width;
     }
   }
 
@@ -514,89 +555,12 @@ const getCurrentTop = (
   for (let i = index - 1; i >= (stopIndex || 0); i -= 1) {
     height += (
       (textRowData[i] && textRowData[i].isNewSentanceStart) ?
-        textRowData[i]?.image?.height || currentLineHeight :
+        textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight :
         (textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight)
       );
   }
   
   return height + startHeight + marginTop;
-}
-
-const getDrawerObjectSettings = async (
-  drawerId: string,
-  proccessId: string,
-  canvasService: CanvasService,
-  pdfService: PDFService,
-  generationType: GenerationTypeEnum
-): Promise<CanvasRenderingContext2D> => {
-  try {
-    if (generationType == GenerationTypeEnum.CANVAS) {
-      const drawerObjectSettings: AxiosResponse<IDrawerSettingsResponse<CanvasRenderingContext2D>> = await canvasService.getDrawerObjectSettings(drawerId);
-    
-      if (!drawerObjectSettings || !drawerObjectSettings.data || !drawerObjectSettings.data.settings) {
-        throw Error('There are no any drawer settings');
-      }
-  
-      return drawerObjectSettings.data.settings;
-    } else {
-      const drawerObjectSettings: AxiosResponse<IDrawerSettingsResponse<IPDFObjectSettings>> = await pdfService.getDrawerObjectSettings(proccessId);
-
-      if (!drawerObjectSettings || !drawerObjectSettings.data || !drawerObjectSettings.data.settings) {
-        throw Error('There are no any drawer settings');
-      }
-
-      const settings: IPDFObjectSettings = drawerObjectSettings.data.settings;
-
-      return {
-        fillStyle: `${settings.r}${settings.g}${settings.b}${settings.fontFamilyPath}${settings.fontSize}`
-      } as CanvasRenderingContext2D
-    }
-  } catch (error) {
-    throw error;
-  }
-}
-
-
-const measureTheTextWidthAndHeight = async (
-  generationType: GenerationTypeEnum,
-  drawerId: string,
-  processId: string,
-  fontSize: number,
-  fontData: IFontData,
-  currentTextPart: ITextPart,
-  canvasService: CanvasService,
-  pdfService: PDFService,
-  specialSymbolValueMap: Record<string, string> = DEFAULT_SPECIAL_SYMBOL_VALUE_MAP
-) => {
-  if (currentTextPart.image) {
-    return {
-      width: currentTextPart.image.width,
-      height: currentTextPart.image.height
-    };
-  }
-
-  try {
-    await (generationType === GenerationTypeEnum.CANVAS ?
-      canvasService.changeDrawerObjectSettings(drawerId, getCtxFont(fontSize, currentTextPart)) :
-      pdfService.changeDrawerObjectSettings(processId, undefined, undefined, undefined, currentTextPart?.fontSize || fontSize, getPDFFont(currentTextPart, fontData)))
-  } catch (error) {
-    console.log('error');
-    console.log(error);
-    throw error;
-  }
-
-  const text: string = `|-|${formatSpecialSymbolsText(currentTextPart.text, specialSymbolValueMap)}-|-`;
-
-  try {
-    return (
-      await (generationType === GenerationTypeEnum.CANVAS ?
-        canvasService.measureText(drawerId, text) :
-        pdfService.measureText(processId, fontSize, text)
-      )
-    ).data.sizes;
-  } catch (error) {
-    throw error;
-  }
 }
 
 const attachInitialTextObject = (textRowData: ITextRowGenerateData[], index: number) => {

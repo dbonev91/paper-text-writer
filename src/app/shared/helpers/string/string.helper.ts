@@ -1,3 +1,7 @@
+import { FontStyleEnum } from "../../enums/font-style.enum";
+import { ISizes } from "../../models/sizes.interface";
+import { ITextPart } from "../../models/text-part.interface";
+
 export const getFileExtension = (input: string): string => {
   return input.split('.').pop() as string;
 }
@@ -24,6 +28,23 @@ export const EMPTY_SPECIAL_SYMBOL_VALUE_MAP: Record<string, string> = {
   [NEW]: '',
   [SPACE]: ' '
 };
+
+export const getProperSize = (
+  text: string,
+  sizes: ISizes,
+  specialSybolMap: Record<string, string> = DEFAULT_SPECIAL_SYMBOL_VALUE_MAP,
+  empty: boolean = false
+): ISizes => {
+  if (specialSybolMap.hasOwnProperty(text) && !specialSybolMap[text] && empty) {
+    return { width: 0, height: 0 };
+  }
+
+  return sizes;
+}
+
+export const fontMapKey = (measureTextData: ITextPart): string => {
+  return `${measureTextData.fontSize}${(measureTextData.isBold || measureTextData.isItalic) ? '-' : ''}${measureTextData.isBold ? FontStyleEnum.BOLD : ''}${measureTextData.isItalic ? FontStyleEnum.ITALIC : ''}`;
+}
 
 const firstFromAlphabet = 1072; // а
 const lastFromAlphabet = 1103; // я

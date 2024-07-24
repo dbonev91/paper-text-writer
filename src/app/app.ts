@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { PaperConfiguration } from '../../../paper-node-configuration/src/app';
 import { IEnv } from "../../../paper-node-configuration/src/shared/models/env.interface";
-import { prepareAllTextWithDashes, writeTextInsideBox } from "./shared/helpers/text.helper";
+import { collectTextGenerativeInstructions, prepareAllTextWithDashes, writeTextInsideBox } from "./shared/helpers/text.helper";
 import { ISentance } from "./shared/models/sentance.interface";
 import { DRAWER_ID_PARAM, sentanceIdPageMap, sentanceIdsByPageMap } from "./shared/constants";
 import { ITextPart } from "./shared/models/text-part.interface";
@@ -19,8 +19,8 @@ app.disable("x-powered-by");
 app.use(cors(paperConfiguration.getCorsOrigin()));
 
 // Parse JSON bodies (as sent by API clients)
-app.use(express.json({limit: '500mb'}));
-app.use(express.urlencoded({limit: '500mb'}));
+app.use(express.json({limit: '1500mb'}));
+app.use(express.urlencoded({limit: '1500mb'}));
 
 const canvasService: CanvasService = new CanvasService();
 const pdfService: PDFService = new PDFService();
@@ -176,30 +176,32 @@ app.post(
     const b: number | undefined = request.body.b ? Number(request.body.b) : undefined;
     const paddingBottom: number | undefined = request.body.paddingBottom ? Number(request.body.paddingBottom) : undefined;
 
-    console.log('HERE');
-
     try {
       return response.status(200).json({
         status: 'error',
-        currentTextIndex: (await writeTextInsideBox(
-          allTextPartsWithDashes,
-          generationType,
-          processId,
-          textBox,
-          fontSize,
-          fontData,
-          startHeight,
-          request.params[DRAWER_ID_PARAM],
-          canvasService,
-          pdfService,
-          currentPage,
-          currentTextIndex,
-          paddingBottom,
-          r,
-          g,
-          b,
-          request.body.lineHeight
-        ))
+        // currentTextIndex: (await writeTextInsideBox(
+        //   allTextPartsWithDashes,
+        //   generationType,
+        //   processId,
+        //   textBox,
+        //   fontSize,
+        //   fontData,
+        //   startHeight,
+        //   request.params[DRAWER_ID_PARAM],
+        //   canvasService,
+        //   pdfService,
+        //   currentPage,
+        //   currentTextIndex,
+        //   {} as any,
+        //   {} as any,
+        //   {} as any,
+        //   {} as any,
+        //   paddingBottom,
+        //   r,
+        //   g,
+        //   b,
+        //   request.body.lineHeight
+        // ))
       });
     } catch (error) {
       console.log(error)
@@ -210,5 +212,29 @@ app.post(
     }
   }
 );
+
+app.post(
+  `/generative-instructions/:${DRAWER_ID_PARAM}`,
+  async (request: express.Request, response: express.Response) => {
+    const id: string = request.params[DRAWER_ID_PARAM];
+    
+    try {
+      return response.status(200).json({
+        status: 'success',
+        instructions: await collectTextGenerativeInstructions(
+          id,
+          request.body.input,
+          canvasService,
+          pdfService
+        )
+      })
+    } catch (error) {
+      return response.status(400).json({
+        status: 'error',
+        error
+      });
+    }
+  }
+)
 
 paperConfiguration.startNodeServer();
