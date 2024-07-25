@@ -157,7 +157,7 @@ export const collectTextGenerativeInstructions = async (
         text: formatSpecialSymbolsText(textPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP),
         isBold: textPart.isBold,
         isItalic: textPart.isItalic,
-        fontSize: textPart.fontSize
+        fontSize: textPart.fontSize || input.fontSize
       }
     }),
     fontData,
@@ -524,7 +524,7 @@ export const writeTextInsideBox = async (
       try {
         const color: number = textPartObject.text === INV ? 255 : 0;
         pageGenerativeData.coordinateText.push({
-          fontSize: textPartObject.fontSize,
+          fontSize: textPartObject.fontSize || fontSize,
           text,
           page: currentPage,
           x: textPartObject.image ? (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2))) : prefixSpace + left,
