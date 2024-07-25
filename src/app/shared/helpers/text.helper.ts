@@ -1,11 +1,10 @@
 import { AxiosResponse } from "axios";
-import { DEFAULT_FONT_DATA, INITIAL_TEXT_ROW_DATA_OBJECT, sentanceIdPageMap, sentanceIdsByPageMap } from "../constants";
+import { DEFAULT_FONT_DATA, INITIAL_TEXT_ROW_DATA_OBJECT } from "../constants";
 import { FontSerifEnum } from "../enums/font-serif.enum";
 import { FontStyleEnum } from "../enums/font-style.enum";
 import { ICoordinate } from "../models/coordinate.interface";
 import { ISentance } from "../models/sentance.interface";
 import { ISizes } from "../models/sizes.interface";
-import { IMargin } from "../models/text-part-margin.interface";
 import { ITextPart } from "../models/text-part.interface";
 import { ITextRowGenerateData } from "../models/text-row-generate-data.interface";
 import CanvasService from "../services/canvas/canvas.service";
@@ -18,6 +17,8 @@ import { PageNumberPlacementEnum } from "../enums/page-number-placement.enum";
 import { directoryPathToFontData } from "./object/object.helper";
 import { IMeasureAllTextPartsRequestData } from "../models/measure-all-text-parts-request-data.interface";
 import { ISizesData, ISizesResponse } from "../models/sizes-response.interface";
+
+const marginPageSentanceMap: Record<number, Record<string, number>> = {};
 
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
   const groupedNewLines: ITextPart[] = [];
@@ -92,6 +93,7 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
     if (dashedText.indexOf(SHY) === -1) {
       allTextPartsWithDashes.push({
         ...allTextParts[i],
+        image: currentText === 'е' ? allTextParts[i].image : undefined,
         text: currentText,
         isNewSentanceStart: sentanceIdMap[allTextParts[i].sentanceId] ? false : true,
         shouldStartOnTheNextPage: !sentanceIdMap[allTextParts[i].sentanceId] ? allTextParts[i].shouldStartOnTheNextPage : false
@@ -105,6 +107,7 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
     const splittedDashedText: ITextPart[] = dashedText.split(SHY).map((text: string) => {
       const output: ITextPart = {
         ...allTextParts[i],
+        image: text === 'е' ? allTextParts[i].image : undefined,
         text,
         isNewSentanceStart: sentanceIdMap[allTextParts[i].sentanceId] ? false : true,
         shouldStartOnTheNextPage: !sentanceIdMap[allTextParts[i].sentanceId] ? allTextParts[i].shouldStartOnTheNextPage : false
@@ -124,6 +127,7 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
 
       splittedDashedText.splice(j, 0, {
         ...allTextParts[i],
+        image: undefined,
         text: SHY,
         isNewSentanceStart: sentanceIdMap[allTextParts[i].sentanceId] ? false : true,
         shouldStartOnTheNextPage: !sentanceIdMap[allTextParts[i].sentanceId] ? allTextParts[i].shouldStartOnTheNextPage : false
@@ -260,6 +264,12 @@ export const collectTextGenerativeInstructions = async (
     currentPage += 1;
   }
 
+  const keys = Object.keys(marginPageSentanceMap);
+
+  for (let key of keys) {
+    delete marginPageSentanceMap[key as any];
+  }
+
   try {
     await pdfService.arrangePDFParts(
       id,
@@ -285,12 +295,8 @@ export const writeTextInsideBox = async (
   paddingBottom: number = 0,
   lineHeight?: number
 ): Promise<number[]> => {
-  if (!sentanceIdsByPageMap[drawerId]) {
-    sentanceIdsByPageMap[drawerId] = {};
-  }
-
-  if (!sentanceIdPageMap[drawerId]) {
-    sentanceIdPageMap[drawerId] = {};
+  if (!marginPageSentanceMap[currentPage]) {
+    marginPageSentanceMap[currentPage] = {};
   }
 
   let textRowIndex: number = 0;
@@ -349,7 +355,7 @@ export const writeTextInsideBox = async (
       textRowData[textRowIndex].fontSize = currentTextPart.fontSize;
     }
 
-    if ((currentWidth > textBox.width) || isNewLine) {
+    if ((currentWidth > textBox.width) || isNewLine || currentTextPart?.image) {
       if (previousText === SHY) {
         textRowData[textRowIndex].textParts.push({
           ...textRowData[textRowIndex].textParts[0],
@@ -368,7 +374,16 @@ export const writeTextInsideBox = async (
         i &&
         (
           shouldJumpToTheNextPage ||
-          ((currentHeight - (startHeight || textBox.top)) + getCurrentTop(textRowIndex, currentLineHeight, startHeight || textBox.top, textRowData[textRowIndex]?.margin?.top || 0, textRowData, textRowIndex - 2) >= textBox.height)
+          (
+            (currentHeight -
+              (startHeight || textBox.top)) +
+              getCurrentTop(
+                textRowIndex,
+                currentLineHeight,
+                startHeight || textBox.top,
+                textRowData[textRowIndex]?.margin?.top || 0,
+                textRowData, textRowIndex
+              ) >= textBox.height)
         )
       ) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
@@ -401,28 +416,18 @@ export const writeTextInsideBox = async (
 
       textRowData[textRowIndex].textParts.push(currentTextPart);
 
-      const margin: IMargin = textRowData[textRowIndex].margin || {};
-
-      if (sentanceIdPageMap[drawerId][currentTextPart.sentanceId] === currentPage) {
-        margin.top = currentTextPart?.margin?.top || 0;
-
-        const keys: string[] = Object.keys(sentanceIdsByPageMap[drawerId][currentPage] || {});
-
-        for (let i = 0; i < keys.length; i += 1) {
-          margin.top += keys[i] !== currentTextPart.sentanceId ? sentanceIdsByPageMap[drawerId][currentPage][keys[i]] : 0;
-        }
-
-        textRowData[textRowIndex].margin = margin;
+      if (isNaN(marginPageSentanceMap[currentPage][currentTextPart.sentanceId])) {
+        marginPageSentanceMap[currentPage][currentTextPart.sentanceId] = currentTextPart?.margin?.top || 0;
       }
 
-      if (!sentanceIdsByPageMap[drawerId][currentPage]) {
-        sentanceIdsByPageMap[drawerId][currentPage] = {};
+      let top: number = 0;
+      const keys: string[] = Object.keys(marginPageSentanceMap[currentPage]);
+      for (let key of keys) {
+        top += marginPageSentanceMap[currentPage][key];
       }
 
-      sentanceIdsByPageMap[drawerId][currentPage][currentTextPart.sentanceId] = currentTextPart?.margin?.top || 0;
-
-      if (sentanceIdPageMap[drawerId][currentTextPart.sentanceId] === undefined) {
-        sentanceIdPageMap[drawerId][currentTextPart.sentanceId] = currentPage;
+      textRowData[textRowIndex].margin = {
+        top
       }
     }
   }
@@ -553,11 +558,7 @@ const getCurrentTop = (
   let height: number = 0;
 
   for (let i = index - 1; i >= (stopIndex || 0); i -= 1) {
-    height += (
-      (textRowData[i] && textRowData[i].isNewSentanceStart) ?
-        textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight :
-        (textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight)
-      );
+    height += (textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight);
   }
   
   return height + startHeight + marginTop;
