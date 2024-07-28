@@ -189,7 +189,8 @@ export const collectTextGenerativeInstructions = async (
         height: input.height
       },
       fontData,
-      fontSize: input.fontSize
+      fontSize: input.fontSize,
+      mirrorMargin: input.mirrorMargin
     },
     pageNumberSettings: {
       placement: PageNumberPlacementEnum.CENTER,
@@ -416,7 +417,10 @@ export const writeTextInsideBox = async (
 
       textRowData[textRowIndex].textParts.push(currentTextPart);
 
-      if (isNaN(marginPageSentanceMap[currentPage][currentTextPart.sentanceId])) {
+      if (
+        isNaN(marginPageSentanceMap[currentPage][currentTextPart.sentanceId]) &&
+        !isSameSentanceUpperPageMargin(currentPage, currentTextPart.sentanceId)
+      ) {
         marginPageSentanceMap[currentPage][currentTextPart.sentanceId] = currentTextPart?.margin?.top || 0;
       }
 
@@ -545,6 +549,16 @@ export const writeTextInsideBox = async (
   }
 
   return currentTextIndex;
+}
+
+const isSameSentanceUpperPageMargin = (page: number, sentanceId: string): boolean => {
+  for (let i = 0; i < page; i += 1) {
+    if (marginPageSentanceMap[i] && !isNaN(marginPageSentanceMap[i][sentanceId])) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 const getCurrentTop = (
