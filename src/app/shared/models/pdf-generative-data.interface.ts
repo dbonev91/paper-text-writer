@@ -18,6 +18,7 @@ export interface IGeneralSettings {
   sizes: ISizes;
   fontData: IFontData;
   fontSize: number;
+  mirrorMargin: number;
 }
 
 export interface IPageNumberSettings {
