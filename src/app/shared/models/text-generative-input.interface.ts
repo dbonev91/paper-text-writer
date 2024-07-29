@@ -23,4 +23,5 @@ export interface ITextGeneratveInput {
   pageNumbersPaddingTop: number;
   pageNumbersFromPage: number;
   pageNumbersFontSize: number;
+  bookBodyHeadingsAutoPrefixValue: boolean;
 }
