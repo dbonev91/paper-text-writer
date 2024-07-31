@@ -148,7 +148,7 @@ export const collectTextGenerativeInstructions = async (
   canvasService: CanvasService,
   pdfService: PDFService
 ) => {
-  let allTextPartsWithDashes: ITextPart[] = prepareAllTextWithDashes(input.sentences);
+  const allTextPartsWithDashes: ITextPart[] = prepareAllTextWithDashes(input.sentences);
   const fontData: IFontData = directoryPathToFontData(input.fontFilePaths.stringPaths[input.fontFamily]) || DEFAULT_FONT_DATA;
   const measureAllTextPartsRequestData: IMeasureAllTextPartsRequestData = {
     textData: allTextPartsWithDashes.map((textPart: ITextPart, index: number) => {
@@ -351,7 +351,9 @@ export const writeTextInsideBox = async (
       textRowData &&
       textRowData[textRowIndex] &&
       !textRowData[textRowIndex].fontSize &&
-      currentTextPart.fontSize
+      currentTextPart.fontSize &&
+      textRowData[textRowIndex].textParts &&
+      textRowData[textRowIndex].textParts.find((part: ITextPart) => part.sentanceId === currentTextPart.sentanceId)
     ) {
       textRowData[textRowIndex].fontSize = currentTextPart.fontSize;
     }
@@ -383,7 +385,8 @@ export const writeTextInsideBox = async (
                 currentLineHeight,
                 startHeight || textBox.top,
                 textRowData[textRowIndex]?.margin?.top || 0,
-                textRowData, textRowIndex
+                textRowData,
+                textRowIndex
               ) >= textBox.height)
         )
       ) {
@@ -397,7 +400,13 @@ export const writeTextInsideBox = async (
 
       if (textRowData[textRowIndex].textParts.length) {
         textRowIndex += 1;
-        currentHeight = getCurrentTop(textRowIndex, currentLineHeight, startHeight || textBox.top, textRowData[textRowIndex]?.margin?.top || 0, textRowData);
+        currentHeight = getCurrentTop(
+          textRowIndex,
+          currentLineHeight,
+          startHeight || textBox.top,
+          textRowData[textRowIndex]?.margin?.top || 0,
+          textRowData
+        );
         currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
       } else {
         delete lastLineIndexMap[textRowIndex];
