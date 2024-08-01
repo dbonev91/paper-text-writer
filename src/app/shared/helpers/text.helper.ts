@@ -223,6 +223,10 @@ export const collectTextGenerativeInstructions = async (
 
     const slicedTextParts: ITextPart[] = allTextPartsWithDashes.slice(currentIndex);
 
+    if (!slicedTextParts.length) {
+      break;
+    }
+
     // if (generationType === GenerationTypeEnum.CANVAS) {
     //   await firstValueFrom(
     //     this.canvasService.changeDrawerObjectSettings(
@@ -443,6 +447,9 @@ export const writeTextInsideBox = async (
         top
       }
     }
+
+    currentTextIndex.pop();
+    currentTextIndex.push(i);
   }
 
   const justifyStep: number[] = [];
@@ -557,7 +564,7 @@ export const writeTextInsideBox = async (
     }
   }
 
-  return currentTextIndex;
+  return [currentTextIndex[0] + 1];
 }
 
 const isSameSentanceUpperPageMargin = (page: number, sentanceId: string): boolean => {
