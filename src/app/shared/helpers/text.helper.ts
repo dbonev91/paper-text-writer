@@ -208,7 +208,7 @@ export const collectTextGenerativeInstructions = async (
   // if same text is on two or more pages
   const drawerId: string = `${Math.random()}`.split('.')[1];
 
-  while ((currentIndex === 0) || (currentIndex <= allTextPartsWithDashes.length)) {
+  while ((currentIndex === 0) || (currentIndex < (allTextPartsWithDashes.length - 1))) {
     if (input.mirrorMargin) {
       left = (currentPage % 2) ? input.left - input.mirrorMargin : input.left + input.mirrorMargin;
       right = (currentPage % 2) ? input.right + input.mirrorMargin : input.right - input.mirrorMargin;
@@ -220,12 +220,6 @@ export const collectTextGenerativeInstructions = async (
       width: input.width - (left + right),
       height: input.height - input.bottom
     };
-
-    const slicedTextParts: ITextPart[] = allTextPartsWithDashes.slice(currentIndex);
-
-    if (!slicedTextParts.length) {
-      break;
-    }
 
     // if (generationType === GenerationTypeEnum.CANVAS) {
     //   await firstValueFrom(
@@ -245,7 +239,7 @@ export const collectTextGenerativeInstructions = async (
     
     try {
       currentTextIndex = await writeTextInsideBox(
-        slicedTextParts,
+        allTextPartsWithDashes.slice(currentIndex),
         textBox,
         input.fontSize,
         input.startHeight,
@@ -564,7 +558,7 @@ export const writeTextInsideBox = async (
     }
   }
 
-  return [currentTextIndex[0] + 1];
+  return currentTextIndex;
 }
 
 const isSameSentanceUpperPageMargin = (page: number, sentanceId: string): boolean => {
