@@ -148,7 +148,7 @@ export const collectTextGenerativeInstructions = async (
   canvasService: CanvasService,
   pdfService: PDFService
 ) => {
-  let allTextPartsWithDashes: ITextPart[] = prepareAllTextWithDashes(input.sentences);
+  const allTextPartsWithDashes: ITextPart[] = prepareAllTextWithDashes(input.sentences);
   const fontData: IFontData = directoryPathToFontData(input.fontFilePaths.stringPaths[input.fontFamily]) || DEFAULT_FONT_DATA;
   const measureAllTextPartsRequestData: IMeasureAllTextPartsRequestData = {
     textData: allTextPartsWithDashes.map((textPart: ITextPart, index: number) => {
@@ -208,7 +208,7 @@ export const collectTextGenerativeInstructions = async (
   // if same text is on two or more pages
   const drawerId: string = `${Math.random()}`.split('.')[1];
 
-  while ((currentIndex === 0) || (currentIndex <= allTextPartsWithDashes.length)) {
+  while ((currentIndex === 0) || (currentIndex < (allTextPartsWithDashes.length - 1))) {
     if (input.mirrorMargin) {
       left = (currentPage % 2) ? input.left - input.mirrorMargin : input.left + input.mirrorMargin;
       right = (currentPage % 2) ? input.right + input.mirrorMargin : input.right - input.mirrorMargin;
@@ -220,8 +220,6 @@ export const collectTextGenerativeInstructions = async (
       width: input.width - (left + right),
       height: input.height - input.bottom
     };
-
-    const slicedTextParts: ITextPart[] = allTextPartsWithDashes.slice(currentIndex);
 
     // if (generationType === GenerationTypeEnum.CANVAS) {
     //   await firstValueFrom(
@@ -241,7 +239,7 @@ export const collectTextGenerativeInstructions = async (
     
     try {
       currentTextIndex = await writeTextInsideBox(
-        slicedTextParts,
+        allTextPartsWithDashes.slice(currentIndex),
         textBox,
         input.fontSize,
         input.startHeight,
@@ -351,7 +349,9 @@ export const writeTextInsideBox = async (
       textRowData &&
       textRowData[textRowIndex] &&
       !textRowData[textRowIndex].fontSize &&
-      currentTextPart.fontSize
+      currentTextPart.fontSize &&
+      textRowData[textRowIndex].textParts &&
+      textRowData[textRowIndex].textParts.find((part: ITextPart) => part.sentanceId === currentTextPart.sentanceId)
     ) {
       textRowData[textRowIndex].fontSize = currentTextPart.fontSize;
     }
@@ -383,7 +383,8 @@ export const writeTextInsideBox = async (
                 currentLineHeight,
                 startHeight || textBox.top,
                 textRowData[textRowIndex]?.margin?.top || 0,
-                textRowData, textRowIndex
+                textRowData,
+                textRowIndex
               ) >= textBox.height)
         )
       ) {
@@ -397,7 +398,13 @@ export const writeTextInsideBox = async (
 
       if (textRowData[textRowIndex].textParts.length) {
         textRowIndex += 1;
-        currentHeight = getCurrentTop(textRowIndex, currentLineHeight, startHeight || textBox.top, textRowData[textRowIndex]?.margin?.top || 0, textRowData);
+        currentHeight = getCurrentTop(
+          textRowIndex,
+          currentLineHeight,
+          startHeight || textBox.top,
+          textRowData[textRowIndex]?.margin?.top || 0,
+          textRowData
+        );
         currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
       } else {
         delete lastLineIndexMap[textRowIndex];
@@ -434,6 +441,9 @@ export const writeTextInsideBox = async (
         top
       }
     }
+
+    currentTextIndex.pop();
+    currentTextIndex.push(i);
   }
 
   const justifyStep: number[] = [];
