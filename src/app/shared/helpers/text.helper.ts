@@ -8,7 +8,7 @@ import { ISizes } from "../models/sizes.interface";
 import { ITextPart } from "../models/text-part.interface";
 import { ITextRowGenerateData } from "../models/text-row-generate-data.interface";
 import CanvasService from "../services/canvas/canvas.service";
-import { placeShy, SHY, NEW, INV, DEFAULT_SPECIAL_SYMBOL_VALUE_MAP, SPECIAL_SYMBOL_MAP, EMPTY_SPECIAL_SYMBOL_VALUE_MAP, getProperSize, fontMapKey } from "./string/string.helper";
+import { placeShy, SHY, NEW, INV, DEFAULT_SPECIAL_SYMBOL_VALUE_MAP, SPECIAL_SYMBOL_MAP, EMPTY_SPECIAL_SYMBOL_VALUE_MAP, getProperSize, fontMapKey, GAP, GAP_SPECIAL_SYMBOL_VALUE_MAP } from "./string/string.helper";
 import PDFService from "../services/pdf/pdf.service";
 import { IFontData } from "../models/font-data.interface";
 import { ITextGeneratveInput } from '../models/text-generative-input.interface';
@@ -479,15 +479,19 @@ export const writeTextInsideBox = async (
     justifyStep.push(difference / spacesCount);
   }
 
+  let isCentered: boolean = false;
+
   for (let i = 0; i < textRowData.length; i += 1) {
     const textRow: ITextRowGenerateData = textRowData[i];
     let entireTextWidth: number = 0;
 
-    if (textRow.textParts && textRow.textParts.length && textRow.textParts[0].isCentered) {
+    isCentered = Boolean(textRow.textParts && textRow.textParts.length && textRow.textParts[0].isCentered);
+
+    if (textRow.textParts && textRow.textParts.length) {
       for (let i = 0; i < textRow.textParts.length; i += 1) {
         const textPart: ITextPart = textRow.textParts[i];
       
-        textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text), sizesData.outputSizes[textPart.index || 0]);
+        textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text, GAP_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[textPart.index || 0]);
       
         if (textPart.text === SHY) {
           textPart.sizes = sizesData.dashSizesMap[fontMapKey({
@@ -500,15 +504,27 @@ export const writeTextInsideBox = async (
       }
     }
 
-    const prefixSpace: number = entireTextWidth ? (textBox.width - entireTextWidth) / 2 : 0;
+    const rawPrefixSpace: number = textBox.width - entireTextWidth;
+    const prefixSpace: number = (entireTextWidth && isCentered) ? (rawPrefixSpace / 2) : 0;
 
     let left: number = textBox.left;
+    let hasGap: boolean = false;
+    let gapSizes: ISizes | undefined;
 
     for (let j = 0; j < textRow.textParts.length; j += 1) {
       const textPartObject: ITextPart = textRow.textParts[j];
+      const isAGap: boolean = textPartObject.text === GAP;
+
+      if (!hasGap && isAGap) {
+        hasGap = true;
+      }
 
       textPartObject.sizes = getProperSize(formatSpecialSymbolsText(textPartObject.text), sizesData.outputSizes[textPartObject.index || 0]);
       
+      if (isAGap) {
+        gapSizes = textPartObject.sizes;
+      }
+
       if (textPartObject.text === SHY) {
         textPartObject.sizes = sizesData.dashSizesMap[fontMapKey({
           ...textPartObject,
@@ -533,7 +549,7 @@ export const writeTextInsideBox = async (
         textRowData[i]?.margin?.top || 0,
         textRowData
       );
-      const text: string = formatSpecialSymbolsText(textPartObject.text);
+      const text: string = formatSpecialSymbolsText(textPartObject.text, GAP_SPECIAL_SYMBOL_VALUE_MAP);
 
       try {
         const color: number = textPartObject.text === INV ? 255 : 0;
@@ -541,7 +557,9 @@ export const writeTextInsideBox = async (
           fontSize: textPartObject.fontSize || fontSize,
           text,
           page: currentPage,
-          x: textPartObject.image ? (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2))) : prefixSpace + left,
+          x: textPartObject.image ?
+            (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2))) :
+            (hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)),
           y: textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize),
           r: color,
           g: color,

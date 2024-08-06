@@ -9,18 +9,27 @@ export const getFileExtension = (input: string): string => {
 export const SHY: string = '&shy;';
 export const NEW: string = '&new;';
 export const INV: string = '&inv;';
+export const GAP: string = '&gap;';
 export const SPACE: string = '&space;';
 
 export const SPECIAL_SYMBOL_MAP: Record<string, boolean> = {
   [SHY]: true,
   [NEW]: true,
-  [SPACE]: true
+  [SPACE]: true,
+  [GAP]: true
 };
 
 export const DEFAULT_SPECIAL_SYMBOL_VALUE_MAP: Record<string, string> = {
   [SHY]: '-',
   [NEW]: '',
   [SPACE]: ' '
+};
+
+export const GAP_SPECIAL_SYMBOL_VALUE_MAP: Record<string, string> = {
+  [SHY]: '-',
+  [NEW]: '',
+  [SPACE]: ' ',
+  [GAP]: ''
 };
 
 export const EMPTY_SPECIAL_SYMBOL_VALUE_MAP: Record<string, string> = {
