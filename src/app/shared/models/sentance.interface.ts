@@ -15,4 +15,5 @@ export interface ISentanceImage {
   width: number;
   height: number;
   type: ImageTypeEnum;
+  fullInBox: boolean;
 }
