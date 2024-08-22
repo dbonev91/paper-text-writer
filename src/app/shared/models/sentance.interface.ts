@@ -1,4 +1,5 @@
 import { ImageTypeEnum } from "../enums/image-type.enum";
+import { ISizes } from "./sizes.interface";
 import { ITextPart } from "./text-part.interface";
 
 export interface ISentance {
@@ -15,4 +16,5 @@ export interface ISentanceImage {
   width: number;
   height: number;
   type: ImageTypeEnum;
+  pageSizes: ISizes;
 }
