@@ -15,6 +15,7 @@ export interface ITextPart {
   isCentered?: boolean;
   hasntShy?: boolean;
   dontJustify?: boolean;
+  requiredJustify?: boolean;
   fontWeight?: string | number;
   fontFamily?: string;
   fontSize?: number;

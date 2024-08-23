@@ -537,8 +537,8 @@ export const writeTextInsideBox = async (
       const noLastLineOfTheCurrentSentace: boolean = i < (textRowData.length - 1);
       const isLastLineCutted: boolean = !isNaN(cuttedLinesIndexMap[i]);
 
-      if (!textPartObject.dontJustify && 
-        isASpace && noLastLine && (isLastLineCutted || noLastLineOfTheCurrentSentace)) {
+      if (!textPartObject.dontJustify && ((textPartObject.requiredJustify && isLastLineCutted && isASpace) ||
+        (isASpace && noLastLine && (isLastLineCutted || noLastLineOfTheCurrentSentace)))) {
         left += justifyStep[i];
       }
 
