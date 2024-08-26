@@ -190,7 +190,8 @@ export const collectTextGenerativeInstructions = async (
       },
       fontData,
       fontSize: input.fontSize,
-      mirrorMargin: input.mirrorMargin
+      mirrorMargin: input.mirrorMargin,
+      useTextInsteadOfVector: input.useTextInsteadOfVector
     },
     pageNumberSettings: {
       placement: PageNumberPlacementEnum.CENTER,
@@ -310,7 +311,7 @@ export const writeTextInsideBox = async (
   for (let i = 0; i < allTextPartsWithDashes.length; i += 1) {
     const previousTextPart: ITextPart = allTextPartsWithDashes[i - 1];
     const currentTextPart: ITextPart = allTextPartsWithDashes[i];
-    currentTextPart.sizes = getProperSize(formatSpecialSymbolsText(currentTextPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[currentTextPart.index || 0], EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
+    currentTextPart.sizes = getProperSize(formatSpecialSymbolsText(currentTextPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[currentTextPart.index || 0].wordSizes, EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
 
     const previousText: string = previousTextPart ? previousTextPart.text : '';
     
@@ -455,7 +456,7 @@ export const writeTextInsideBox = async (
     for (let i = 0; i < textRow.textParts.length; i += 1) {
       const textPart: ITextPart = textRow.textParts[i];
 
-      textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text), sizesData.outputSizes[textPart.index || 0]);
+      textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text), sizesData.outputSizes[textPart.index || 0].wordSizes);
       
       if (textPart.text === SHY) {
         textPart.sizes = sizesData.dashSizesMap[fontMapKey({
@@ -491,7 +492,7 @@ export const writeTextInsideBox = async (
       for (let i = 0; i < textRow.textParts.length; i += 1) {
         const textPart: ITextPart = textRow.textParts[i];
       
-        textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text, GAP_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[textPart.index || 0]);
+        textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text, GAP_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[textPart.index || 0].wordSizes);
       
         if (textPart.text === SHY) {
           textPart.sizes = sizesData.dashSizesMap[fontMapKey({
@@ -519,7 +520,7 @@ export const writeTextInsideBox = async (
         hasGap = true;
       }
 
-      textPartObject.sizes = getProperSize(formatSpecialSymbolsText(textPartObject.text), sizesData.outputSizes[textPartObject.index || 0]);
+      textPartObject.sizes = getProperSize(formatSpecialSymbolsText(textPartObject.text), sizesData.outputSizes[textPartObject.index || 0].wordSizes);
       
       if (isAGap) {
         gapSizes = textPartObject.sizes;
@@ -550,30 +551,36 @@ export const writeTextInsideBox = async (
         textRowData
       );
       const text: string = formatSpecialSymbolsText(textPartObject.text, GAP_SPECIAL_SYMBOL_VALUE_MAP);
+      const color: number = textPartObject.text === INV ? 255 : 0;
 
-      try {
-        const color: number = textPartObject.text === INV ? 255 : 0;
-        pageGenerativeData.coordinateText.push({
-          fontSize: textPartObject.fontSize || fontSize,
-          text,
-          page: currentPage,
-          x: textPartObject.image ?
-            (textPartObject.image.fullInBox ? 0 :
-              (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2)))) :
-              (hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)),
-          y: textPartObject.image ?
-            textPartObject.image.fullInBox ? 0 :
-              (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)) :
-              (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)),
-          r: color,
-          g: color,
-          b: color,
-          image: textPartObject.image,
-          isBold: textPartObject.isBold,
-          isItalic: textPartObject.isItalic
-        });
-      } catch (error) {
-        throw error;
+      let accumulatedX: number = 0;
+
+      for (let k = 0; k < text.length; k += 1) {
+        try {
+          pageGenerativeData.coordinateText.push({
+            fontSize: textPartObject.fontSize || fontSize,
+            text: text[k],
+            page: currentPage,
+            x: textPartObject.image ?
+              (textPartObject.image.fullInBox ? 0 :
+                (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2)))) :
+                ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
+            y: textPartObject.image ?
+              textPartObject.image.fullInBox ? 0 :
+                (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)) :
+                (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)),
+            r: color,
+            g: color,
+            b: color,
+            image: textPartObject.image,
+            isBold: textPartObject.isBold,
+            isItalic: textPartObject.isItalic
+          });
+        } catch (error) {
+          throw error;
+        }
+
+        accumulatedX += sizesData.outputSizes[textPartObject.index || 0].charSizes[k].width;
       }
 
       left += (textPartObject.sizes as ISizes).width;

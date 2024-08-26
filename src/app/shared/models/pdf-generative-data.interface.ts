@@ -19,6 +19,7 @@ export interface IGeneralSettings {
   fontData: IFontData;
   fontSize: number;
   mirrorMargin: number;
+  useTextInsteadOfVector: boolean;
 }
 
 export interface IPageNumberSettings {
