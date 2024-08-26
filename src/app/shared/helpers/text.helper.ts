@@ -561,7 +561,10 @@ export const writeTextInsideBox = async (
             (textPartObject.image.fullInBox ? 0 :
               (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2)))) :
               (hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)),
-          y: textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize),
+          y: textPartObject.image ?
+            textPartObject.image.fullInBox ? 0 :
+              (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)) :
+              (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)),
           r: color,
           g: color,
           b: color,
