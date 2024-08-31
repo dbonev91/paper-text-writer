@@ -16,6 +16,7 @@ export interface IPDFPageData {
 export interface IGeneralSettings {
   id: string;
   sizes: ISizes;
+  scale: number;
   fontData: IFontData;
   fontSize: number;
   mirrorMargin: number;
