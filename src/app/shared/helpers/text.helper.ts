@@ -190,6 +190,7 @@ export const collectTextGenerativeInstructions = async (
       },
       fontData,
       fontSize: input.fontSize,
+      scale: input.scale,
       mirrorMargin: input.mirrorMargin,
       useTextInsteadOfVector: input.useTextInsteadOfVector
     },

@@ -17,6 +17,7 @@ export interface ITextGeneratveInput {
   right: number;
   bottom: number;
   left: number;
+  scale: number;
   generationType: GenerationTypeEnum;
   startHeight: number;
   lineHeight: number;
