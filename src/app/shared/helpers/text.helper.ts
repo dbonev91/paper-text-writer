@@ -408,8 +408,8 @@ export const writeTextInsideBox = async (
                 isCover ? 0 : (startHeight || textBox.top),
                 textRowData[textRowIndex]?.margin?.top || 0,
                 textRowData,
-                textRowIndex
-              ) >= textBox.height - (isCover ? (2 * fontSize) : 0))
+                textRowIndex - (isCover ? 2 : 0)
+              ) >= textBox.height)
         )
       ) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
