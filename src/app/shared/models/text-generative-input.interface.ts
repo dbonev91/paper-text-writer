@@ -1,12 +1,14 @@
 import { ISentance } from "./sentance.interface";
 import { GenerationTypeEnum } from '../enums/generation-type.enum';
 import { IFontFilePaths } from "./directory.interface";
+import { ICoordinate } from "./coordinate.interface";
 
 export interface ITextGeneratveInput {
   sentences: ISentance[];
   fontSize: number;
   fontFamily: string;
   fontFilePaths: IFontFilePaths;
+  textRectangles?: ICoordinate[];
   r?: number;
   g?: number;
   b?: number;

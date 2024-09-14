@@ -181,7 +181,11 @@ export const collectTextGenerativeInstructions = async (
   let currentPage: number = 0;
 
   const pdfGenerativeData: IPDFGenerativeData = {
-    pages: [],
+    pages: [
+      {
+        coordinateText: []
+      }
+    ],
     generalSettings: {
       id,
       sizes: {
@@ -205,6 +209,10 @@ export const collectTextGenerativeInstructions = async (
   let left: number = input.left;
   let right: number = input.right;
 
+  const textRectangles: ICoordinate[] = input.textRectangles as ICoordinate[];
+
+  const isCover: boolean = Boolean(textRectangles && textRectangles.length);
+
   // TODO: for canvas should variate for each while iteration
   // the reason is it multiplys the margin
   // if same text is on two or more pages
@@ -216,12 +224,26 @@ export const collectTextGenerativeInstructions = async (
       right = (currentPage % 2) ? input.right + input.mirrorMargin : input.right - input.mirrorMargin;
     }
 
-    const textBox: ICoordinate = {
-      top: input.top,
-      left: left,
-      width: input.width - (left + right),
-      height: input.height - input.bottom
-    };
+    let currentTextBox: ICoordinate;
+
+    if (isCover) {
+      currentTextBox = textRectangles[currentPage];
+    } else {
+      currentTextBox = {
+        top: input.top,
+        left,
+        width: input.width - (left + right),
+        height: input.height - input.bottom
+      };
+  
+      pdfGenerativeData.pages[currentPage] = {
+        coordinateText: []
+      }
+    }
+
+    if (!currentTextBox && isCover) {
+      break;
+    }
 
     // if (generationType === GenerationTypeEnum.CANVAS) {
     //   await firstValueFrom(
@@ -234,22 +256,20 @@ export const collectTextGenerativeInstructions = async (
     //     )
     //   );
     // }
-
-    pdfGenerativeData.pages[currentPage] = {
-      coordinateText: []
-    }
     
     try {
       currentTextIndex = await writeTextInsideBox(
         allTextPartsWithDashes.slice(currentIndex),
-        textBox,
+        currentTextBox,
         input.fontSize,
         input.startHeight,
+        input.height,
+        isCover,
         drawerId,
-        currentPage,
+        isCover ? 0 : currentPage,
         currentTextIndex,
         sizesResponse.data.data,
-        pdfGenerativeData.pages[currentPage],
+        pdfGenerativeData.pages[isCover ? 0 : currentPage],
         input.bottom,
         input.lineHeight
       );
@@ -288,6 +308,8 @@ export const writeTextInsideBox = async (
   textBox: ICoordinate,
   fontSize: number,
   startHeight: number,
+  height: number,
+  isCover: boolean,
   drawerId: string,
   currentPage: number,
   currentTextIndex: number[],
@@ -383,11 +405,11 @@ export const writeTextInsideBox = async (
               getCurrentTop(
                 textRowIndex,
                 currentLineHeight,
-                startHeight || textBox.top,
+                isCover ? 0 : (startHeight || textBox.top),
                 textRowData[textRowIndex]?.margin?.top || 0,
                 textRowData,
                 textRowIndex
-              ) >= textBox.height)
+              ) >= textBox.height - (isCover ? (2 * fontSize) : 0))
         )
       ) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
@@ -547,7 +569,7 @@ export const writeTextInsideBox = async (
       const currentTop: number = getCurrentTop(
         i,
         currentLineHeight,
-        startHeight || textBox.top,
+        isCover ? 0 : (startHeight || textBox.top),
         textRowData[i]?.margin?.top || 0,
         textRowData
       );
@@ -555,6 +577,8 @@ export const writeTextInsideBox = async (
       const color: number = textPartObject.text === INV ? 255 : 0;
 
       let accumulatedX: number = 0;
+
+      const pageHeight: number = isCover ? (height - textBox.top) : textBox.height;
 
       for (let k = 0; k < text.length; k += 1) {
         try {
@@ -568,8 +592,8 @@ export const writeTextInsideBox = async (
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: textPartObject.image ?
               textPartObject.image.fullInBox ? 0 :
-                (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)) :
-                (textBox.height + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)),
+                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)) :
+                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)),
             r: color,
             g: color,
             b: color,
