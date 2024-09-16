@@ -15,6 +15,8 @@ export interface ITextGeneratveInput {
   mirrorMargin: number;
   width: number;
   height: number;
+  saveWidth?: number;
+  saveHeight?: number;
   top: number;
   right: number;
   bottom: number;

@@ -17,6 +17,7 @@ export interface IGeneralSettings {
   id: string;
   sizes: ISizes;
   scale: number;
+  saveSizes?: ISizes;
   fontData: IFontData;
   fontSize: number;
   mirrorMargin: number;
