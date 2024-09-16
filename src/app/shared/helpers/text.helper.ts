@@ -192,6 +192,10 @@ export const collectTextGenerativeInstructions = async (
         width: input.width,
         height: input.height
       },
+      saveSizes: {
+        width: input.saveWidth as number,
+        height: input.saveHeight as number
+      },
       fontData,
       fontSize: input.fontSize,
       scale: input.scale,
