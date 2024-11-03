@@ -91,13 +91,13 @@ export default class PDFService extends URLFormatter {
     )
   }
 
-  arrangePDFParts (
-    id: string,
-    pdfPartsData: IPDFGenerativeData
-  ): Promise<AxiosResponse<any>> {
-    return axios.post(`${this.url}/arrange-pdf-from-parts/${id}`,
-      { 'pdf-parts': pdfPartsData },
+  arrangePDFParts (id: string): Promise<AxiosResponse<any>> {
+    return axios.post(`${this.url}/arrange-pdf-from-parts/${id}`, { httpsAgent })
+  }
+
+  streamPDFParts (id: string): Promise<AxiosResponse<any>> {
+    return axios.get(`${this.url}/stream-pdf-parts/${id}`,
       { httpsAgent }
-    )
+    );
   }
 }

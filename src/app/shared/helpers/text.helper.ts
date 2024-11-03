@@ -1,5 +1,5 @@
 import { AxiosResponse } from "axios";
-import { DEFAULT_FONT_DATA, INITIAL_TEXT_ROW_DATA_OBJECT } from "../constants";
+import { DEFAULT_FONT_DATA, INITIAL_TEXT_ROW_DATA_OBJECT, SINGLE_QUERY_PAGES } from "../constants";
 import { FontSerifEnum } from "../enums/font-serif.enum";
 import { FontStyleEnum } from "../enums/font-style.enum";
 import { ICoordinate } from "../models/coordinate.interface";
@@ -19,6 +19,7 @@ import { IMeasureAllTextPartsRequestData } from "../models/measure-all-text-part
 import { ISizesData, ISizesResponse } from "../models/sizes-response.interface";
 
 const marginPageSentanceMap: Record<number, Record<string, number>> = {};
+const pdfGenerationMap: Record<string, IPDFGenerativeData> = {};
 
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
   const groupedNewLines: ITextPart[] = [];
@@ -136,7 +137,9 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
       sentanceIdMap[allTextParts[i].sentanceId] = true;
     }
 
-    allTextPartsWithDashes = allTextPartsWithDashes.concat(splittedDashedText);
+    for (let currentTextPart of splittedDashedText) {
+      allTextPartsWithDashes.push(currentTextPart);
+    }
   }
 
   return allTextPartsWithDashes;
@@ -281,6 +284,17 @@ export const collectTextGenerativeInstructions = async (
       throw error;
     }
 
+    if (!(currentPage % SINGLE_QUERY_PAGES)) {
+      pdfGenerationMap[id] = pdfGenerativeData;
+
+      try {
+        await pdfService.streamPDFParts(id);
+      } catch (error) {
+        console.log('ERROR STREAM:');
+        console.log(error);
+      }
+    }
+
     if (!currentTextIndex[0]) {
       break;
     }
@@ -295,16 +309,49 @@ export const collectTextGenerativeInstructions = async (
     delete marginPageSentanceMap[key as any];
   }
 
+  pdfGenerationMap[id] = pdfGenerativeData;
+
   try {
-    await pdfService.arrangePDFParts(
-      id,
-      pdfGenerativeData
-    );   
+    await pdfService.streamPDFParts(id);
   } catch (error) {
+    console.log('ERROR STREAM:');
+    console.log(error);
+  }
+
+  console.log('START ARRANGE PDF');
+
+  try {
+    await pdfService.arrangePDFParts(id);   
+  } catch (error) {
+    console.log('ERROR ARRANGE PDF:');
     console.log(error)
   }
 
+  console.log('PDF COMPLETED');
+
   return pdfGenerativeData;
+}
+
+export const streamPDFParts = async (id: string, response: any) => {
+  response.setHeader('Content-Type', 'application/json');
+  response.setHeader('Transfer-Encoding', 'chunked');
+
+  const length: number = pdfGenerationMap[id].pages.length;
+  const substractedLength: number = (length - 1);
+  const lengthPart: number = substractedLength % SINGLE_QUERY_PAGES;
+  const step: number = lengthPart ? lengthPart : SINGLE_QUERY_PAGES;
+  const pagesStep: number = length <= SINGLE_QUERY_PAGES ? length : step;
+
+  const stringifiedPDFObject: string = JSON.stringify(
+    {
+      ...pdfGenerationMap[id],
+      pages: pdfGenerationMap[id].pages.slice(length - pagesStep, length)
+    }
+  );
+
+  response.write(stringifiedPDFObject);
+
+  response.end();
 }
 
 export const writeTextInsideBox = async (

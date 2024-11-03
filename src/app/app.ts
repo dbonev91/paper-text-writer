@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { PaperConfiguration } from '../../../paper-node-configuration/src/app';
 import { IEnv } from "../../../paper-node-configuration/src/shared/models/env.interface";
-import { collectTextGenerativeInstructions, prepareAllTextWithDashes, writeTextInsideBox } from "./shared/helpers/text.helper";
+import { collectTextGenerativeInstructions, prepareAllTextWithDashes, streamPDFParts, writeTextInsideBox } from "./shared/helpers/text.helper";
 import { ISentance } from "./shared/models/sentance.interface";
 import { DRAWER_ID_PARAM, sentanceIdPageMap, sentanceIdsByPageMap } from "./shared/constants";
 import { ITextPart } from "./shared/models/text-part.interface";
@@ -236,5 +236,13 @@ app.post(
     }
   }
 )
+
+app.get(
+  `/stream-pdf-generation-parts/:${DRAWER_ID_PARAM}`,
+  async (request: express.Request, response: express.Response) => {
+    const id: string = request.params[DRAWER_ID_PARAM];
+    streamPDFParts(id, response);
+  }
+);
 
 paperConfiguration.startNodeServer();
