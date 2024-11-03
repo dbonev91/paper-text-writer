@@ -1,4 +1,6 @@
-FROM node:latest
+# Downgrade NodeJS 21 as a workaround for the ExperimentalWarning
+# Upgrade it when there is a fix version deployed
+FROM node:21
 
 RUN mkdir -p /usr/src/app
 
