@@ -17,4 +17,4 @@ export const DEFAULT_FONT_DATA: IFontData = {
   extension: 'otf'
 }
 
-export const SINGLE_QUERY_PAGES: number = 50;
+export const SINGLE_QUERY_PAGES: number = 1;

@@ -284,7 +284,7 @@ export const collectTextGenerativeInstructions = async (
       throw error;
     }
 
-    if (!(currentPage % SINGLE_QUERY_PAGES)) {
+    if (!(currentPage % SINGLE_QUERY_PAGES) && !isCover) {
       pdfGenerationMap[id] = pdfGenerativeData;
 
       try {
