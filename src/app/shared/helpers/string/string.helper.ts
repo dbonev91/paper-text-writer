@@ -111,7 +111,11 @@ export const placeShy = (value: string) => {
       nextCharacter.toLowerCase().charCodeAt(0) >= firstFromAlphabet &&
       nextCharacter.toLowerCase().charCodeAt(0) <= lastFromAlphabet &&
       doubleNextCharacter.toLowerCase().charCodeAt(0) >= firstFromAlphabet &&
-      doubleNextCharacter.toLowerCase().charCodeAt(0) <= lastFromAlphabet
+      doubleNextCharacter.toLowerCase().charCodeAt(0) <= lastFromAlphabet &&
+      (
+        (isVowel(prevCharacter) || isVowel(currentCharacter)) &&
+        (isVowel(nextCharacter) || isVowel(doubleNextCharacter))
+      )
     ) {
       output += SHY;
     }
