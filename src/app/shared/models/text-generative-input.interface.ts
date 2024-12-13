@@ -1,10 +1,11 @@
-import { ISentance } from "./sentance.interface";
+import { ISentance, ISentanceImage } from "./sentance.interface";
 import { GenerationTypeEnum } from '../enums/generation-type.enum';
 import { IFontFilePaths } from "./directory.interface";
 import { ICoordinate } from "./coordinate.interface";
 
 export interface ITextGeneratveInput {
   sentences: ISentance[];
+  specificPagesImages: Record<string, ISentanceImage>;
   fontSize: number;
   fontFamily: string;
   fontFilePaths: IFontFilePaths;

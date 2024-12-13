@@ -3,7 +3,7 @@ import { DEFAULT_FONT_DATA, INITIAL_TEXT_ROW_DATA_OBJECT, SINGLE_QUERY_PAGES } f
 import { FontSerifEnum } from "../enums/font-serif.enum";
 import { FontStyleEnum } from "../enums/font-style.enum";
 import { ICoordinate } from "../models/coordinate.interface";
-import { ISentance } from "../models/sentance.interface";
+import { ISentance, ISentanceImage } from "../models/sentance.interface";
 import { ISizes } from "../models/sizes.interface";
 import { ITextPart } from "../models/text-part.interface";
 import { ITextRowGenerateData } from "../models/text-row-generate-data.interface";
@@ -263,10 +263,12 @@ export const collectTextGenerativeInstructions = async (
     //     )
     //   );
     // }
+
+    const imageOnASpecificPage: ISentanceImage = input.specificPagesImages[currentPage];
     
     try {
       currentTextIndex = await writeTextInsideBox(
-        allTextPartsWithDashes.slice(currentIndex),
+        imageOnASpecificPage ? [{ image: imageOnASpecificPage, text: 'е', sentanceId: '' }] : allTextPartsWithDashes.slice(currentIndex),
         currentTextBox,
         input.fontSize,
         input.startHeight,
@@ -295,7 +297,7 @@ export const collectTextGenerativeInstructions = async (
       }
     }
 
-    if (!currentTextIndex[0]) {
+    if (!currentTextIndex[0] && !imageOnASpecificPage) {
       break;
     }
 
