@@ -335,7 +335,7 @@ export const collectTextGenerativeInstructions = async (
 }
 
 export const streamPDFParts = async (id: string, response: any) => {
-  response.setHeader('Content-Type', 'application/json');
+  response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.setHeader('Transfer-Encoding', 'chunked');
 
   const length: number = pdfGenerationMap[id].pages.length;
