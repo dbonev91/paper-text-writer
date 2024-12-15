@@ -26,6 +26,7 @@ export interface ITextPart {
 
 export interface ICoordinateText {
   text: string;
+  ascii?: number;
   x: number;
   y: number;
   page: number;
