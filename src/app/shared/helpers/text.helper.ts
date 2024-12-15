@@ -49,7 +49,7 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
     for (let j = 0; j < textParts.length; j += 1) {
       const groupedLine: ITextPart = textParts[j];
       const texts: string[] = splitByNewLine(replaceDoubleRN(groupedLine.text))
-        .map((text: string, index: number) => newRowText(index, text, groupedLine.newLineAutoPrefix));
+        .map((text: string, index: number) => newRowText(index, text, j && !index ? '' : groupedLine.newLineAutoPrefix));
   
       newLines = newLines.concat(
         texts.map((text: string) => {
