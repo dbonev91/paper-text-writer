@@ -406,31 +406,8 @@ export const writeTextInsideBox = async (
     textRowData[textRowIndex].isNewSentanceStart = currentTextPart.isNewSentanceStart;
     textRowData[textRowIndex].shouldStartOnTheNextPage = currentTextPart.shouldStartOnTheNextPage;
 
-    if (
-      textRowData &&
-      textRowData[textRowIndex] &&
-      textRowData[textRowIndex].fontSize &&
-      currentTextPart.fontSize
-    ) {
-      textRowData[textRowIndex].fontSize =
-        (Number(textRowData[textRowIndex].fontSize) > currentTextPart.fontSize) ?
-          textRowData[textRowIndex].fontSize :
-          currentTextPart.fontSize;
-    }
-
     if (textRowData[textRowIndex] && currentTextPart.image) {
       textRowData[textRowIndex].image = currentTextPart.image;
-    }
-
-    if (
-      textRowData &&
-      textRowData[textRowIndex] &&
-      (Number(currentTextPart.fontSize) > Number(textRowData[textRowIndex].fontSize)) &&
-      currentTextPart.fontSize &&
-      textRowData[textRowIndex].textParts &&
-      textRowData[textRowIndex].textParts.find((part: ITextPart) => part.sentanceId === currentTextPart.sentanceId)
-    ) {
-      textRowData[textRowIndex].fontSize = currentTextPart.fontSize;
     }
 
     if ((currentWidth > textBox.width) || isNewLine || currentTextPart?.image) {
@@ -586,7 +563,6 @@ export const writeTextInsideBox = async (
 
     let left: number = textBox.left;
     let hasGap: boolean = false;
-    let gapSizes: ISizes | undefined;
 
     for (let j = 0; j < textRow.textParts.length; j += 1) {
       const textPartObject: ITextPart = textRow.textParts[j];
@@ -597,10 +573,6 @@ export const writeTextInsideBox = async (
       }
 
       textPartObject.sizes = getProperSize(formatSpecialSymbolsText(textPartObject.text), sizesData.outputSizes[textPartObject.index || 0].wordSizes);
-      
-      if (isAGap) {
-        gapSizes = textPartObject.sizes;
-      }
 
       if (textPartObject.text === SHY) {
         textPartObject.sizes = sizesData.dashSizesMap[fontMapKey({
@@ -645,8 +617,8 @@ export const writeTextInsideBox = async (
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: textPartObject.image ?
               textPartObject.image.fullInBox ? 0 :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)) :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || textRowData[i]?.fontSize || fontSize)),
+                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], fontSize) || fontSize)) :
+                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], fontSize) || fontSize)),
             r: color,
             g: color,
             b: color,
@@ -666,6 +638,24 @@ export const writeTextInsideBox = async (
   }
 
   return currentTextIndex;
+}
+
+const getBiggestFontSize = (textRowData: ITextRowGenerateData, fontSize: number): number => {
+  if (!textRowData || !textRowData.textParts || !textRowData.textParts.length) {
+    return 0;
+  }
+
+  let largestFontSize: number = fontSize;
+
+  for (let i = 0; i < textRowData.textParts.length; i += 1) {
+    const currentFontSize: number = Number(textRowData.textParts[i].fontSize);
+    
+    if (!isNaN(currentFontSize) && currentFontSize > largestFontSize) {
+      largestFontSize = currentFontSize;
+    }
+  }
+
+  return largestFontSize;
 }
 
 const isSameSentanceUpperPageMargin = (page: number, sentanceId: string): boolean => {
@@ -689,7 +679,7 @@ const getCurrentTop = (
   let height: number = 0;
 
   for (let i = index - 1; i >= (stopIndex || 0); i -= 1) {
-    height += (textRowData[i]?.image?.height || textRowData[i]?.fontSize || currentLineHeight);
+    height += (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight) || currentLineHeight);
   }
   
   return height + startHeight + marginTop;
