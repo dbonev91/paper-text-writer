@@ -344,14 +344,18 @@ export const streamPDFParts = async (id: string, response: any) => {
   const step: number = lengthPart ? lengthPart : SINGLE_QUERY_PAGES;
   const pagesStep: number = length <= SINGLE_QUERY_PAGES ? length : step;
 
-  const stringifiedPDFObject: string = JSON.stringify(
-    {
-      ...pdfGenerationMap[id],
-      pages: pdfGenerationMap[id].pages.slice(length - pagesStep, length)
-    }
-  );
+  const pdfDataToSend: IPDFGenerativeData = {
+    ...pdfGenerationMap[id],
+    pages: pdfGenerationMap[id].pages.slice(length - pagesStep, length)
+  };
 
-  response.write(stringifiedPDFObject);
+  for (let i = 0; i < pdfDataToSend.pages.length; i += 1) {
+    for (let j = 0; j < pdfDataToSend.pages[i].coordinateText.length; j += 1) {
+      pdfDataToSend.pages[i].coordinateText[j].ascii = pdfDataToSend.pages[i].coordinateText[j].text.charCodeAt(0);
+    }
+  }
+
+  response.write(JSON.stringify(pdfDataToSend));
 
   response.end();
 }
