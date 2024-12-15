@@ -437,6 +437,7 @@ export const writeTextInsideBox = async (
       if (previousText === SHY) {
         textRowData[textRowIndex].textParts.push({
           ...textRowData[textRowIndex].textParts[0],
+          fontSize: 0,
           text: SHY,
           sentanceId: currentTextPart.sentanceId
         });
