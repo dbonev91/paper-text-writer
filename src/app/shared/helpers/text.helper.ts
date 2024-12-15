@@ -22,43 +22,44 @@ const marginPageSentanceMap: Record<number, Record<string, number>> = {};
 const pdfGenerationMap: Record<string, IPDFGenerativeData> = {};
 
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
-  const groupedNewLines: ITextPart[] = [];
+  const groupedNewLinesMap: ITextPart[][] = [];
 
   for (let i = 0; i < sentences.length; i += 1) {
     const sentence: ISentance = sentences[i];
     const textParts: ITextPart[] = sentence.textParts;
 
-    groupedNewLines.push(
-      textParts.reduce(
-        (accumulator: ITextPart, current: ITextPart) => {
-          const accumulatorText: string = accumulator.text || '';
+    if (!groupedNewLinesMap[i]) {
+      groupedNewLinesMap[i] = [];
+    }
 
-          return {
-            ...sentence,
-            ...current,
-            text: newRowText(i, `${accumulatorText}${current.text}`, sentence.newLineAutoPrefix)
-          }
-        },
-        {} as ITextPart
-      )
-    );
+    for (let j = 0; j < textParts.length; j += 1) {
+      groupedNewLinesMap[i].push({
+        ...sentence,
+        ...textParts[j],
+        text: j ? textParts[j].text : newRowText(i, `${textParts[j].text}`, sentence.newLineAutoPrefix)
+      });
+    }
   }
 
   let newLines: ITextPart[] = [];
 
-  for (let i = 0; i < groupedNewLines.length; i += 1) {
-    const groupedLine: ITextPart = groupedNewLines[i];
-    const texts: string[] = splitByNewLine(replaceDoubleRN(groupedLine.text))
-      .map((text: string, index: number) => newRowText(index, text, groupedLine.newLineAutoPrefix));
+  for (let i = 0; i < groupedNewLinesMap.length; i += 1) {
+    const textParts: ITextPart[] = groupedNewLinesMap[i];
 
-    newLines = newLines.concat(
-      texts.map((text: string) => {
-        return {
-          ...groupedLine,
-          text
+    for (let j = 0; j < textParts.length; j += 1) {
+      const groupedLine: ITextPart = textParts[j];
+      const texts: string[] = splitByNewLine(replaceDoubleRN(groupedLine.text))
+        .map((text: string, index: number) => newRowText(index, text, groupedLine.newLineAutoPrefix));
+  
+      newLines = newLines.concat(
+        texts.map((text: string) => {
+          return {
+            ...groupedLine,
+            text
+          }
         }
-      }
-    ));
+      ));
+    }
   }
 
   const allTextParts: ITextPart[] = [];
@@ -75,7 +76,6 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
         ...lineData,
         text: line[k]
       }
-
 
       isOnlySpaces(currentChar.text) ?
         addTextPart(spacesQueue[0], currentChar, allTextParts, charsQueue, spacesQueue) :
@@ -425,7 +425,7 @@ export const writeTextInsideBox = async (
     if (
       textRowData &&
       textRowData[textRowIndex] &&
-      !textRowData[textRowIndex].fontSize &&
+      (Number(currentTextPart.fontSize) > Number(textRowData[textRowIndex].fontSize)) &&
       currentTextPart.fontSize &&
       textRowData[textRowIndex].textParts &&
       textRowData[textRowIndex].textParts.find((part: ITextPart) => part.sentanceId === currentTextPart.sentanceId)
@@ -630,7 +630,7 @@ export const writeTextInsideBox = async (
       const color: number = textPartObject.text === INV ? 255 : 0;
 
       let accumulatedX: number = 0;
-
+      
       const pageHeight: number = isCover ? (height - textBox.top) : textBox.height;
 
       for (let k = 0; k < text.length; k += 1) {
