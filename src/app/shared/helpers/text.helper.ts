@@ -49,7 +49,7 @@ export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] =>
     for (let j = 0; j < textParts.length; j += 1) {
       const groupedLine: ITextPart = textParts[j];
       const texts: string[] = splitByNewLine(replaceDoubleRN(groupedLine.text))
-        .map((text: string, index: number) => newRowText(index, text, groupedLine.newLineAutoPrefix));
+        .map((text: string, index: number) => newRowText(index, text, j && !index ? '' : groupedLine.newLineAutoPrefix));
   
       newLines = newLines.concat(
         texts.map((text: string) => {
@@ -418,6 +418,7 @@ export const writeTextInsideBox = async (
       if (previousText === SHY) {
         textRowData[textRowIndex].textParts.push({
           ...textRowData[textRowIndex].textParts[0],
+          fontSize: 0,
           text: SHY,
           sentanceId: currentTextPart.sentanceId
         });
@@ -621,8 +622,8 @@ export const writeTextInsideBox = async (
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: textPartObject.image ?
               textPartObject.image.fullInBox ? 0 :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], fontSize) || fontSize)) :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], fontSize) || fontSize)),
+                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))) :
+                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))),
             r: color,
             g: color,
             b: color,
@@ -644,22 +645,22 @@ export const writeTextInsideBox = async (
   return currentTextIndex;
 }
 
-const getBiggestFontSize = (textRowData: ITextRowGenerateData, fontSize: number): number => {
+const getBiggestFontSize = (textRowData: ITextRowGenerateData, lineHeight: number): number => {
   if (!textRowData || !textRowData.textParts || !textRowData.textParts.length) {
     return 0;
   }
 
-  let largestFontSize: number = fontSize;
+  let largestLineHeight: number = lineHeight;
 
   for (let i = 0; i < textRowData.textParts.length; i += 1) {
     const currentFontSize: number = Number(textRowData.textParts[i].fontSize);
     
-    if (!isNaN(currentFontSize) && currentFontSize > largestFontSize) {
-      largestFontSize = currentFontSize;
+    if (!isNaN(currentFontSize) && currentFontSize > largestLineHeight) {
+      largestLineHeight = currentFontSize;
     }
   }
 
-  return largestFontSize;
+  return largestLineHeight;
 }
 
 const isSameSentanceUpperPageMargin = (page: number, sentanceId: string): boolean => {
@@ -683,7 +684,7 @@ const getCurrentTop = (
   let height: number = 0;
 
   for (let i = index - 1; i >= (stopIndex || 0); i -= 1) {
-    height += (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight) || currentLineHeight);
+    height += (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight));
   }
   
   return height + startHeight + marginTop;
