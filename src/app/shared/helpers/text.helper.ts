@@ -196,12 +196,13 @@ export const collectTextGenerativeInstructions = async (
         height: input.height
       },
       saveSizes: {
-        width: input.saveWidth as number,
-        height: input.saveHeight as number
+        width: (input.saveWidth as number) + input.knifeBorderValue,
+        height: (input.saveHeight as number) + (input.knifeBorderValue * 2)
       },
       fontData,
       fontSize: input.fontSize,
       scale: input.scale,
+      knifeBorder: input.knifeBorderValue,
       mirrorMargin: input.mirrorMargin,
       useTextInsteadOfVector: input.useTextInsteadOfVector
     },
@@ -227,8 +228,8 @@ export const collectTextGenerativeInstructions = async (
 
   while ((currentIndex === 0) || (currentIndex < (allTextPartsWithDashes.length - 1))) {
     if (input.mirrorMargin) {
-      left = (currentPage % 2) ? input.left - input.mirrorMargin : input.left + input.mirrorMargin;
-      right = (currentPage % 2) ? input.right + input.mirrorMargin : input.right - input.mirrorMargin;
+      left = (currentPage % 2) ? (input.left - input.mirrorMargin) + input.knifeBorderValue : input.left + input.mirrorMargin;
+      right = (currentPage % 2) ? (input.right + input.mirrorMargin) - input.knifeBorderValue : input.right - input.mirrorMargin;
     }
 
     let currentTextBox: ICoordinate;

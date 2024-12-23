@@ -23,6 +23,7 @@ export interface ITextGeneratveInput {
   bottom: number;
   left: number;
   scale: number;
+  knifeBorderValue: number;
   generationType: GenerationTypeEnum;
   startHeight: number;
   lineHeight: number;
