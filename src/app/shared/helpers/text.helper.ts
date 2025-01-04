@@ -280,6 +280,7 @@ export const collectTextGenerativeInstructions = async (
         currentTextIndex,
         sizesResponse.data.data,
         pdfGenerativeData.pages[isCover ? 0 : currentPage],
+        input.knifeBorderValue,
         input.bottom,
         input.lineHeight
       );
@@ -373,6 +374,7 @@ export const writeTextInsideBox = async (
   currentTextIndex: number[],
   sizesData: ISizesData,
   pageGenerativeData: IPDFPageData,
+  knifeBorderValue: number,
   paddingBottom: number = 0,
   lineHeight?: number
 ): Promise<number[]> => {
@@ -618,11 +620,11 @@ export const writeTextInsideBox = async (
             text: text[k],
             page: currentPage,
             x: textPartObject.image ?
-              (textPartObject.image.fullInBox ? 0 :
+              (textPartObject.image.fullInBox ? ((currentPage % 2) ? knifeBorderValue : 0) :
                 (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2)))) :
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: textPartObject.image ?
-              textPartObject.image.fullInBox ? 0 :
+              textPartObject.image.fullInBox ? knifeBorderValue :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))) :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))),
             r: color,
