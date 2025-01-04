@@ -274,6 +274,7 @@ export const collectTextGenerativeInstructions = async (
         input.fontSize,
         input.startHeight,
         input.height,
+        input.bottom,
         isCover,
         drawerId,
         isCover ? 0 : currentPage,
@@ -368,6 +369,7 @@ export const writeTextInsideBox = async (
   fontSize: number,
   startHeight: number,
   height: number,
+  bottom: number,
   isCover: boolean,
   drawerId: string,
   currentPage: number,
@@ -623,10 +625,13 @@ export const writeTextInsideBox = async (
               (textPartObject.image.fullInBox ? ((currentPage % 2) ? knifeBorderValue : 0) :
                 (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2)))) :
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
-            y: textPartObject.image ?
-              textPartObject.image.fullInBox ? knifeBorderValue :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))) :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))),
+            y: computeY(
+              pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)),
+              knifeBorderValue,
+              textBox,
+              bottom,
+              textPartObject.image
+            ),
             r: color,
             g: color,
             b: color,
@@ -646,6 +651,22 @@ export const writeTextInsideBox = async (
   }
 
   return currentTextIndex;
+}
+
+const computeY = (computedY: number, knifeBorderValue: number, textBox: ISizes, bottom: number, image?: ISentanceImage) => {
+  if (!image) {
+    return computedY;
+  }
+
+  if (image.fullInBox) {
+    return knifeBorderValue;
+  }
+
+  if (image.verticalCenter) {
+    return ((textBox.height + bottom) / 2) - (image.height / 2);
+  }
+
+  return computedY;
 }
 
 const getBiggestFontSize = (textRowData: ITextRowGenerateData, lineHeight: number): number => {
