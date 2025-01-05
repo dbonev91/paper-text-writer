@@ -666,6 +666,10 @@ const computeY = (computedY: number, knifeBorderValue: number, textBox: ISizes, 
     return ((textBox.height + bottom) / 2) - (image.height / 2);
   }
 
+  if (image.bottom) {
+    return bottom + knifeBorderValue;
+  }
+
   return computedY;
 }
 

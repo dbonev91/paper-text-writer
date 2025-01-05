@@ -19,4 +19,5 @@ export interface ISentanceImage {
   pageSizes: ISizes;
   fullInBox: boolean;
   verticalCenter?: boolean;
+  bottom?: boolean;
 }
