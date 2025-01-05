@@ -434,12 +434,13 @@ export const writeTextInsideBox = async (
       }
 
       const shouldJumpToTheNextPage: boolean = Boolean(textRowData[textRowIndex] && textRowData[textRowIndex].shouldStartOnTheNextPage);
+      const marginTop: number = textRowData[textRowIndex]?.margin?.top || 0;
 
       const currentTop: number = getCurrentTop(
         isCover ? textRowIndex + 1 : textRowIndex,
         currentLineHeight,
         isCover ? 0 : (startHeight || textBox.top),
-        textRowData[textRowIndex]?.margin?.top || 0,
+        marginTop,
         textRowData,
         textRowIndex
       );
@@ -448,19 +449,13 @@ export const writeTextInsideBox = async (
         textRowIndex,
         currentLineHeight,
         isCover ? 0 : (startHeight || textBox.top),
-        textRowData[textRowIndex]?.margin?.top || 0,
-        textRowData
+        marginTop,
+        textRowData,
+        knifeBorderValue
       );
       currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
 
-      if (
-        i &&
-        (
-          shouldJumpToTheNextPage ||
-          (
-            ((currentHeight - startHeight) + (currentTop * (isCover ? 2 : 1))) >= textBox.height)
-        )
-      ) {
+      if (i && (shouldJumpToTheNextPage || ((currentHeight + (getBiggestFontSize(textRowData[textRowIndex], currentLineHeight)) + knifeBorderValue)) >= textBox.height)) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
 
         currentTextIndex.pop();
@@ -607,7 +602,8 @@ export const writeTextInsideBox = async (
         currentLineHeight,
         isCover ? 0 : (startHeight || textBox.top),
         textRowData[i]?.margin?.top || 0,
-        textRowData
+        textRowData,
+        knifeBorderValue
       );
       const text: string = formatSpecialSymbolsText(textPartObject.text, GAP_SPECIAL_SYMBOL_VALUE_MAP);
       const color: number = textPartObject.text === INV ? 255 : 0;
@@ -627,7 +623,7 @@ export const writeTextInsideBox = async (
                 (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2)))) :
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: computeY(
-              pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)),
+              pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + (knifeBorderValue * 2),
               knifeBorderValue,
               textBox,
               bottom,
@@ -684,7 +680,7 @@ const getBiggestFontSize = (textRowData: ITextRowGenerateData, lineHeight: numbe
   for (let i = 0; i < textRowData.textParts.length; i += 1) {
     const currentFontSize: number = Number(textRowData.textParts[i].fontSize);
     
-    if (!isNaN(currentFontSize) && currentFontSize > largestLineHeight) {
+    if (!isNaN(currentFontSize) && (currentFontSize > largestLineHeight)) {
       largestLineHeight = currentFontSize;
     }
   }
@@ -708,6 +704,7 @@ const getCurrentTop = (
   startHeight: number,
   marginTop: number,
   textRowData: ITextRowGenerateData[],
+  knifeBorderValue: number,
   stopIndex?: number
 ): number => {
   let height: number = 0;
@@ -716,7 +713,7 @@ const getCurrentTop = (
     height += (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight));
   }
   
-  return height + startHeight + marginTop;
+  return height + startHeight + marginTop + knifeBorderValue;
 }
 
 const attachInitialTextObject = (textRowData: ITextRowGenerateData[], index: number) => {
