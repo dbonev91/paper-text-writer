@@ -17,6 +17,7 @@ import { PageNumberPlacementEnum } from "../enums/page-number-placement.enum";
 import { directoryPathToFontData } from "./object/object.helper";
 import { IMeasureAllTextPartsRequestData } from "../models/measure-all-text-parts-request-data.interface";
 import { ISizesData, ISizesResponse } from "../models/sizes-response.interface";
+import { INewLineCurrentWidthAndTextPart } from "../models/new-line-current-width.interface";
 
 const marginPageSentanceMap: Record<number, Record<string, number>> = {};
 const pdfGenerationMap: Record<string, IPDFGenerativeData> = {};
@@ -395,18 +396,15 @@ export const writeTextInsideBox = async (
 
   for (let i = 0; i < allTextPartsWithDashes.length; i += 1) {
     const previousTextPart: ITextPart = allTextPartsWithDashes[i - 1];
-    const currentTextPart: ITextPart = allTextPartsWithDashes[i];
-    currentTextPart.sizes = getProperSize(formatSpecialSymbolsText(currentTextPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[currentTextPart.index || 0].wordSizes, EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
-
+    const data: INewLineCurrentWidthAndTextPart = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, i, sizesData) as INewLineCurrentWidthAndTextPart ;
+    const currentTextPart: ITextPart = data.textPart;
     const previousText: string = previousTextPart ? previousTextPart.text : '';
-    
-    if (currentTextPart.text !== NEW && currentTextPart.text !== SHY) {
-      currentWidth += currentTextPart.sizes.width;
-    }
 
-    const isNewLine: boolean = (currentTextPart.text.indexOf(NEW) >= 0);
+    currentWidth += data.currentWidth;
 
-    if (isNewLine) {
+    const isNewLine: boolean = data.isNewLine;
+
+    if (data.isNewLine) {
       lastLineIndexMap[textRowIndex] = textRowIndex;
     }
 
@@ -436,28 +434,21 @@ export const writeTextInsideBox = async (
       const shouldJumpToTheNextPage: boolean = Boolean(textRowData[textRowIndex] && textRowData[textRowIndex].shouldStartOnTheNextPage);
       const marginTop: number = textRowData[textRowIndex]?.margin?.top || 0;
 
-      const currentTop: number = getCurrentTop(
-        isCover ? textRowIndex + 1 : textRowIndex,
-        currentLineHeight,
-        isCover ? 0 : (startHeight || textBox.top),
-        marginTop,
-        textRowData,
-        textRowIndex
-      );
-
       currentHeight = getCurrentTop(
         textRowIndex,
         currentLineHeight,
         isCover ? 0 : (startHeight || textBox.top),
         marginTop,
-        textRowData,
-        knifeBorderValue
+        textRowData
       );
-      currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
 
-      if (i && (shouldJumpToTheNextPage || ((currentHeight + (getBiggestFontSize(textRowData[textRowIndex], currentLineHeight)) + knifeBorderValue)) >= textBox.height)) {
+      currentWidth = isNewLine ? 0 : (currentTextPart.sizes || {}).width as number;
+
+      if (i && (shouldJumpToTheNextPage || ((currentHeight
+        + (getBiggestFontSize(textRowData[textRowIndex], currentLineHeight))
+        + (getBiggestFontSize(getTextRowData(i, allTextPartsWithDashes, sizesData, textBox.width), currentLineHeight))
+      )) >= textBox.height)) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
-
         currentTextIndex.pop();
         currentTextIndex.push(i);
 
@@ -602,8 +593,7 @@ export const writeTextInsideBox = async (
         currentLineHeight,
         isCover ? 0 : (startHeight || textBox.top),
         textRowData[i]?.margin?.top || 0,
-        textRowData,
-        knifeBorderValue
+        textRowData
       );
       const text: string = formatSpecialSymbolsText(textPartObject.text, GAP_SPECIAL_SYMBOL_VALUE_MAP);
       const color: number = textPartObject.text === INV ? 255 : 0;
@@ -648,6 +638,49 @@ export const writeTextInsideBox = async (
   }
 
   return currentTextIndex;
+}
+
+const getTextWidthTextPartAndNewLine = (allTextPartsWithDashes: ITextPart[], index: number, sizesData: ISizesData): INewLineCurrentWidthAndTextPart | null => {
+  let currentWidth: number = 0;
+
+  const textPart: ITextPart = allTextPartsWithDashes[index];
+  
+  if (!textPart) {
+    return null;
+  }
+
+  textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[textPart.index || 0].wordSizes, EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
+  
+  if (textPart.text !== NEW && textPart.text !== SHY) {
+    currentWidth = textPart.sizes.width;
+  }
+
+  return {
+    isNewLine: textPart.text.indexOf(NEW) >= 0,
+    currentWidth,
+    textPart
+  }
+}
+
+const getTextRowData = (index: number, allTextPartsWithDashes: ITextPart[], sizesData: ISizesData, textBoxWidth: number): ITextRowGenerateData => {
+  const textParts: ITextPart[] = [];
+
+  let localIndex: number = index;
+  let data: INewLineCurrentWidthAndTextPart | null = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, localIndex, sizesData);
+  let accumulatedWidth: number = 0;
+
+  while (data && !data.isNewLine && (accumulatedWidth <= textBoxWidth) && !data.textPart.image) {
+    accumulatedWidth += data.currentWidth;
+    textParts.push(data.textPart);
+
+    localIndex += 1;
+
+    data = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, localIndex, sizesData);
+  }
+
+  return {
+    textParts
+  }
 }
 
 const computeY = (computedY: number, knifeBorderValue: number, textBox: ISizes, bottom: number, image?: ISentanceImage) => {
@@ -703,17 +736,15 @@ const getCurrentTop = (
   currentLineHeight: number,
   startHeight: number,
   marginTop: number,
-  textRowData: ITextRowGenerateData[],
-  knifeBorderValue: number,
-  stopIndex?: number
+  textRowData: ITextRowGenerateData[]
 ): number => {
   let height: number = 0;
 
-  for (let i = index - 1; i >= (stopIndex || 0); i -= 1) {
+  for (let i = index - 1; i >= 0; i -= 1) {
     height += (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight));
   }
   
-  return height + startHeight + marginTop + knifeBorderValue;
+  return height + startHeight + marginTop;
 }
 
 const attachInitialTextObject = (textRowData: ITextRowGenerateData[], index: number) => {
