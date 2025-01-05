@@ -433,21 +433,30 @@ export const writeTextInsideBox = async (
 
       const shouldJumpToTheNextPage: boolean = Boolean(textRowData[textRowIndex] && textRowData[textRowIndex].shouldStartOnTheNextPage);
 
+      const currentTop: number = getCurrentTop(
+        isCover ? textRowIndex + 1 : textRowIndex,
+        currentLineHeight,
+        isCover ? 0 : (startHeight || textBox.top),
+        textRowData[textRowIndex]?.margin?.top || 0,
+        textRowData,
+        textRowIndex
+      );
+
+      currentHeight = getCurrentTop(
+        textRowIndex,
+        currentLineHeight,
+        isCover ? 0 : (startHeight || textBox.top),
+        textRowData[textRowIndex]?.margin?.top || 0,
+        textRowData
+      );
+      currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
+
       if (
         i &&
         (
           shouldJumpToTheNextPage ||
           (
-            (currentHeight -
-              (startHeight || textBox.top)) +
-              getCurrentTop(
-                textRowIndex,
-                currentLineHeight,
-                isCover ? 0 : (startHeight || textBox.top),
-                textRowData[textRowIndex]?.margin?.top || 0,
-                textRowData,
-                textRowIndex - (isCover ? 2 : 0)
-              ) >= textBox.height)
+            ((currentHeight - startHeight) + (currentTop * (isCover ? 2 : 1))) >= textBox.height)
         )
       ) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
@@ -460,14 +469,6 @@ export const writeTextInsideBox = async (
 
       if (textRowData[textRowIndex].textParts.length) {
         textRowIndex += 1;
-        currentHeight = getCurrentTop(
-          textRowIndex,
-          currentLineHeight,
-          startHeight || textBox.top,
-          textRowData[textRowIndex]?.margin?.top || 0,
-          textRowData
-        );
-        currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
       } else {
         delete lastLineIndexMap[textRowIndex];
       }
