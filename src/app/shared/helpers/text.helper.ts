@@ -444,10 +444,12 @@ export const writeTextInsideBox = async (
 
       currentWidth = isNewLine ? 0 : (currentTextPart.sizes || {}).width as number;
 
-      if (i && (shouldJumpToTheNextPage || ((currentHeight
+      const metric: number = (currentHeight
         + (getBiggestFontSize(textRowData[textRowIndex], currentLineHeight))
-        + (getBiggestFontSize(getTextRowData(i, allTextPartsWithDashes, sizesData, textBox.width), currentLineHeight))
-      )) >= textBox.height)) {
+        + ((getBiggestFontSize(getTextRowData(i, allTextPartsWithDashes, sizesData, textBox.width), currentLineHeight)))
+      );
+
+      if (i && (shouldJumpToTheNextPage || ((metric >= textBox.height)))) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
         currentTextIndex.pop();
         currentTextIndex.push(i);
@@ -669,7 +671,7 @@ const getTextRowData = (index: number, allTextPartsWithDashes: ITextPart[], size
   let data: INewLineCurrentWidthAndTextPart | null = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, localIndex, sizesData);
   let accumulatedWidth: number = 0;
 
-  while (data && !data.isNewLine && (accumulatedWidth <= textBoxWidth) && !data.textPart.image) {
+  while (data && (accumulatedWidth <= textBoxWidth) && !data.textPart.image) {
     accumulatedWidth += data.currentWidth;
     textParts.push(data.textPart);
 
