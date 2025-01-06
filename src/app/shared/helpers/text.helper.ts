@@ -695,7 +695,7 @@ const computeY = (computedY: number, knifeBorderValue: number, textBox: ISizes, 
   }
 
   if (image.verticalCenter) {
-    return ((textBox.height + bottom) / 2) - (image.height / 2);
+    return ((textBox.height + bottom + knifeBorderValue) / 2) - (image.height / 2);
   }
 
   if (image.bottom) {
