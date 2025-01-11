@@ -500,21 +500,15 @@ export const writeTextInsideBox = async (
   }
 
   const justifyStep: number[] = [];
-  const sequantVerticalCenteredRowIndexMap: any = {};
+  const sequantVerticalCenteredRowIndexMap: Record<number, number> = {};
   let verticalCenteredRowsFullHeight: number = 0;
 
   for (let i = 0; i < textRowData.length; i += 1) {
     const textRow: ITextRowGenerateData = textRowData[i];
     
     if (textRow.textParts[0] && textRow.textParts[0].isVerticalCenter) {
-      const rowHeight: number = textRow?.image?.height || getBiggestFontSize(textRow, currentLineHeight);
-      
-      sequantVerticalCenteredRowIndexMap[i] = {
-        rowHeight,
-        top: getCurrentTop(i, currentLineHeight, 0, 0, textRowData, i - Object.keys(sequantVerticalCenteredRowIndexMap).length)
-      };
-
-      verticalCenteredRowsFullHeight += rowHeight;
+      sequantVerticalCenteredRowIndexMap[i] = getCurrentTop(i, currentLineHeight, 0, 0, textRowData, i - Object.keys(sequantVerticalCenteredRowIndexMap).length);
+      verticalCenteredRowsFullHeight += textRow?.image?.height || getBiggestFontSize(textRow, currentLineHeight);
     }
 
     let textWidth: number = 0;
@@ -634,7 +628,7 @@ export const writeTextInsideBox = async (
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: computeY(
               isVerticalCenter ?
-                (((textBox.height / 2) + (verticalCenteredRowsFullHeight / 2) - sequantVerticalCenteredRowIndexMap[i].top + verticalCenterDifference)) :
+                (((textBox.height / 2) + (verticalCenteredRowsFullHeight / 2) - sequantVerticalCenteredRowIndexMap[i] + verticalCenterDifference)) :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + (knifeBorderValue * 2)),
               knifeBorderValue,
               textBox,
