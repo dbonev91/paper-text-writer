@@ -5,6 +5,8 @@ import { ITextPart } from "./text-part.interface";
 export interface ISentance {
   id: string;
   isCentered?: boolean;
+  isBottom?: boolean;
+  isVerticalCenter?: boolean;
   shouldTextTransfer?: boolean;
   newLineAutoPrefix?: string;
   image?: ISentanceImage;

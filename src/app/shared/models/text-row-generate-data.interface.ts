@@ -6,6 +6,8 @@ export interface ITextRowGenerateData {
   isLastLine?: boolean;
   isCuttedLine?: boolean;
   isCentered?: boolean;
+  isBottom?: boolean;
+  isVerticalCenter?: boolean;
   fontSize?: number;
   margin?: IMargin;
   isNewSentanceStart?: boolean;

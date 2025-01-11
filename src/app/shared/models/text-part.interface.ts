@@ -13,6 +13,8 @@ export interface ITextPart {
   isBold?: boolean;
   isItalic?: boolean;
   isCentered?: boolean;
+  isBottom?: boolean;
+  isVerticalCenter?: boolean;
   hasntShy?: boolean;
   dontJustify?: boolean;
   requiredJustify?: boolean;
