@@ -500,15 +500,15 @@ export const writeTextInsideBox = async (
   }
 
   const justifyStep: number[] = [];
-  const sequantVerticalCenteredRowIndexMap: Record<number, number> = {};
-  let verticalCenteredRowsFullHeight: number = 0;
+  const sequantVerticalAlignRowIndexMap: Record<number, number> = {};
+  let verticalAlignedRowsFullHeight: number = 0;
 
   for (let i = 0; i < textRowData.length; i += 1) {
     const textRow: ITextRowGenerateData = textRowData[i];
     
     if (textRow.textParts[0] && (textRow.textParts[0].isVerticalCenter || textRow.textParts[0].isBottom)) {
-      sequantVerticalCenteredRowIndexMap[i] = getCurrentTop(i, currentLineHeight, 0, 0, textRowData, i - Object.keys(sequantVerticalCenteredRowIndexMap).length);
-      verticalCenteredRowsFullHeight += textRow?.image?.height || getBiggestFontSize(textRow, currentLineHeight);
+      sequantVerticalAlignRowIndexMap[i] = getCurrentTop(i, currentLineHeight, 0, 0, textRowData, i - Object.keys(sequantVerticalAlignRowIndexMap).length);
+      verticalAlignedRowsFullHeight += textRow?.image?.height || getBiggestFontSize(textRow, currentLineHeight);
     }
 
     let textWidth: number = 0;
@@ -540,8 +540,8 @@ export const writeTextInsideBox = async (
     justifyStep.push(difference / spacesCount);
   }
 
-  const verticalCenteredRows: number = Object.keys(sequantVerticalCenteredRowIndexMap).length;
-  const verticalCenterDifference: number = verticalCenteredRows ? (verticalCenteredRowsFullHeight / verticalCenteredRows) : 0;
+  const verticalCenteredRows: number = Object.keys(sequantVerticalAlignRowIndexMap).length;
+  const verticalAlignDifference: number = verticalCenteredRows ? (verticalAlignedRowsFullHeight / verticalCenteredRows) : 0;
 
   let isCentered: boolean = false;
 
@@ -629,9 +629,9 @@ export const writeTextInsideBox = async (
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: computeY(
               isVerticalCenter ?
-                (((textBox.height / 2) + (verticalCenteredRowsFullHeight / 2) - sequantVerticalCenteredRowIndexMap[i] + verticalCenterDifference)) + knifeBorderValue :
+                (((textBox.height / 2) + (verticalAlignedRowsFullHeight / 2) - sequantVerticalAlignRowIndexMap[i] + verticalAlignDifference)) + knifeBorderValue :
               isBottom ?
-                (((textBox.height) - (verticalCenteredRowsFullHeight) - sequantVerticalCenteredRowIndexMap[i])) - verticalCenterDifference + knifeBorderValue :
+                ((textBox.height - verticalAlignedRowsFullHeight - sequantVerticalAlignRowIndexMap[i] - verticalAlignDifference)) + knifeBorderValue :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + knifeBorderValue),
               knifeBorderValue,
               textBox,
