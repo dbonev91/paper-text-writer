@@ -540,8 +540,8 @@ export const writeTextInsideBox = async (
     justifyStep.push(difference / spacesCount);
   }
 
-  const verticalCenteredRows: number = Object.keys(sequantVerticalAlignRowIndexMap).length;
-  const verticalAlignDifference: number = verticalCenteredRows ? (verticalAlignedRowsFullHeight / verticalCenteredRows) : 0;
+  const verticalAlignedRows: number = Object.keys(sequantVerticalAlignRowIndexMap).length;
+  const verticalAlignDifference: number = verticalAlignedRows ? (verticalAlignedRowsFullHeight / verticalAlignedRows) : 0;
 
   let isCentered: boolean = false;
 
@@ -549,7 +549,7 @@ export const writeTextInsideBox = async (
     const textRow: ITextRowGenerateData = textRowData[i];
     let entireTextWidth: number = 0;
 
-    isCentered = Boolean(textRow.textParts && textRow.textParts.length && textRow.textParts[0].isCentered);
+    isCentered = Boolean(textRow.textParts && textRow.textParts.length && textRow.textParts[0].isCentered && !textRow.textParts[0].requiredJustify);
 
     if (textRow.textParts && textRow.textParts.length) {
       for (let i = 0; i < textRow.textParts.length; i += 1) {
