@@ -17,6 +17,7 @@ import { PageNumberPlacementEnum } from "../enums/page-number-placement.enum";
 import { directoryPathToFontData } from "./object/object.helper";
 import { IMeasureAllTextPartsRequestData } from "../models/measure-all-text-parts-request-data.interface";
 import { ISizesData, ISizesResponse } from "../models/sizes-response.interface";
+import { INewLineCurrentWidthAndTextPart } from "../models/new-line-current-width.interface";
 
 const marginPageSentanceMap: Record<number, Record<string, number>> = {};
 const pdfGenerationMap: Record<string, IPDFGenerativeData> = {};
@@ -274,6 +275,7 @@ export const collectTextGenerativeInstructions = async (
         input.fontSize,
         input.startHeight,
         input.height,
+        input.bottom,
         isCover,
         drawerId,
         isCover ? 0 : currentPage,
@@ -368,6 +370,7 @@ export const writeTextInsideBox = async (
   fontSize: number,
   startHeight: number,
   height: number,
+  bottom: number,
   isCover: boolean,
   drawerId: string,
   currentPage: number,
@@ -393,18 +396,15 @@ export const writeTextInsideBox = async (
 
   for (let i = 0; i < allTextPartsWithDashes.length; i += 1) {
     const previousTextPart: ITextPart = allTextPartsWithDashes[i - 1];
-    const currentTextPart: ITextPart = allTextPartsWithDashes[i];
-    currentTextPart.sizes = getProperSize(formatSpecialSymbolsText(currentTextPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[currentTextPart.index || 0].wordSizes, EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
-
+    const data: INewLineCurrentWidthAndTextPart = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, i, sizesData) as INewLineCurrentWidthAndTextPart ;
+    const currentTextPart: ITextPart = data.textPart;
     const previousText: string = previousTextPart ? previousTextPart.text : '';
-    
-    if (currentTextPart.text !== NEW && currentTextPart.text !== SHY) {
-      currentWidth += currentTextPart.sizes.width;
-    }
 
-    const isNewLine: boolean = (currentTextPart.text.indexOf(NEW) >= 0);
+    currentWidth += data.currentWidth;
 
-    if (isNewLine) {
+    const isNewLine: boolean = data.isNewLine;
+
+    if (data.isNewLine) {
       lastLineIndexMap[textRowIndex] = textRowIndex;
     }
 
@@ -432,35 +432,25 @@ export const writeTextInsideBox = async (
       }
 
       const shouldJumpToTheNextPage: boolean = Boolean(textRowData[textRowIndex] && textRowData[textRowIndex].shouldStartOnTheNextPage);
-
-      const currentTop: number = getCurrentTop(
-        isCover ? textRowIndex + 1 : textRowIndex,
-        currentLineHeight,
-        isCover ? 0 : (startHeight || textBox.top),
-        textRowData[textRowIndex]?.margin?.top || 0,
-        textRowData,
-        textRowIndex
-      );
+      const marginTop: number = textRowData[textRowIndex]?.margin?.top || 0;
 
       currentHeight = getCurrentTop(
         textRowIndex,
         currentLineHeight,
         isCover ? 0 : (startHeight || textBox.top),
-        textRowData[textRowIndex]?.margin?.top || 0,
+        marginTop,
         textRowData
       );
-      currentWidth = isNewLine ? 0 : currentTextPart.sizes.width;
 
-      if (
-        i &&
-        (
-          shouldJumpToTheNextPage ||
-          (
-            ((currentHeight - startHeight) + (currentTop * (isCover ? 2 : 1))) >= textBox.height)
-        )
-      ) {
+      currentWidth = isNewLine ? 0 : (currentTextPart.sizes || {}).width as number;
+
+      const metric: number = (currentHeight
+        + (getBiggestFontSize(textRowData[textRowIndex], currentLineHeight))
+        + ((getBiggestFontSize(getTextRowData(i, allTextPartsWithDashes, sizesData, textBox.width), currentLineHeight)))
+      );
+
+      if (i && (shouldJumpToTheNextPage || ((metric >= textBox.height)))) {
         cuttedLinesIndexMap[textRowIndex] = textRowIndex;
-
         currentTextIndex.pop();
         currentTextIndex.push(i);
 
@@ -510,9 +500,17 @@ export const writeTextInsideBox = async (
   }
 
   const justifyStep: number[] = [];
+  const sequantVerticalAlignRowIndexMap: Record<number, number> = {};
+  let verticalAlignedRowsFullHeight: number = 0;
 
   for (let i = 0; i < textRowData.length; i += 1) {
     const textRow: ITextRowGenerateData = textRowData[i];
+    
+    if (textRow.textParts[0] && (textRow.textParts[0].isVerticalCenter || textRow.textParts[0].isBottom)) {
+      sequantVerticalAlignRowIndexMap[i] = getCurrentTop(i, currentLineHeight, 0, 0, textRowData, i - Object.keys(sequantVerticalAlignRowIndexMap).length);
+      verticalAlignedRowsFullHeight += textRow?.image?.height || getBiggestFontSize(textRow, currentLineHeight);
+    }
+
     let textWidth: number = 0;
 
     for (let i = 0; i < textRow.textParts.length; i += 1) {
@@ -542,13 +540,16 @@ export const writeTextInsideBox = async (
     justifyStep.push(difference / spacesCount);
   }
 
+  const verticalAlignedRows: number = Object.keys(sequantVerticalAlignRowIndexMap).length;
+  const verticalAlignDifference: number = verticalAlignedRows ? (verticalAlignedRowsFullHeight / verticalAlignedRows) : 0;
+
   let isCentered: boolean = false;
 
   for (let i = 0; i < textRowData.length; i += 1) {
     const textRow: ITextRowGenerateData = textRowData[i];
     let entireTextWidth: number = 0;
 
-    isCentered = Boolean(textRow.textParts && textRow.textParts.length && textRow.textParts[0].isCentered);
+    isCentered = Boolean(textRow.textParts && textRow.textParts.length && textRow.textParts[0].isCentered && !textRow.textParts[0].requiredJustify);
 
     if (textRow.textParts && textRow.textParts.length) {
       for (let i = 0; i < textRow.textParts.length; i += 1) {
@@ -569,6 +570,8 @@ export const writeTextInsideBox = async (
 
     const rawPrefixSpace: number = textBox.width - entireTextWidth;
     const prefixSpace: number = (entireTextWidth && isCentered) ? (rawPrefixSpace / 2) : 0;
+    const isVerticalCenter: boolean = Boolean(textRowData[i].textParts[0] && textRowData[i].textParts[0].isVerticalCenter);
+    const isBottom: boolean = Boolean(textRowData[i].textParts[0] && textRowData[i].textParts[0].isBottom);
 
     let left: number = textBox.left;
     let hasGap: boolean = false;
@@ -624,10 +627,17 @@ export const writeTextInsideBox = async (
               (textPartObject.image.fullInBox ? ((currentPage % 2) ? knifeBorderValue : 0) :
                 (textBox.left + ((textBox.width / 2) - (((textPartObject.image as any).width || 0) / 2)))) :
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
-            y: textPartObject.image ?
-              textPartObject.image.fullInBox ? knifeBorderValue :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))) :
-                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight))),
+            y: computeY(
+              isVerticalCenter ?
+                (((textBox.height / 2) + (verticalAlignedRowsFullHeight / 2) - sequantVerticalAlignRowIndexMap[i] + verticalAlignDifference)) + knifeBorderValue :
+              isBottom ?
+                ((textBox.height - verticalAlignedRowsFullHeight - sequantVerticalAlignRowIndexMap[i] - verticalAlignDifference)) + knifeBorderValue :
+                (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + knifeBorderValue),
+              knifeBorderValue,
+              textBox,
+              bottom,
+              textPartObject.image
+            ),
             r: color,
             g: color,
             b: color,
@@ -649,6 +659,69 @@ export const writeTextInsideBox = async (
   return currentTextIndex;
 }
 
+const getTextWidthTextPartAndNewLine = (allTextPartsWithDashes: ITextPart[], index: number, sizesData: ISizesData): INewLineCurrentWidthAndTextPart | null => {
+  let currentWidth: number = 0;
+
+  const textPart: ITextPart = allTextPartsWithDashes[index];
+  
+  if (!textPart) {
+    return null;
+  }
+
+  textPart.sizes = getProperSize(formatSpecialSymbolsText(textPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP), sizesData.outputSizes[textPart.index || 0].wordSizes, EMPTY_SPECIAL_SYMBOL_VALUE_MAP);
+  
+  if (textPart.text !== NEW && textPart.text !== SHY) {
+    currentWidth = textPart.sizes.width;
+  }
+
+  return {
+    isNewLine: textPart.text.indexOf(NEW) >= 0,
+    currentWidth,
+    textPart
+  }
+}
+
+const getTextRowData = (index: number, allTextPartsWithDashes: ITextPart[], sizesData: ISizesData, textBoxWidth: number): ITextRowGenerateData => {
+  const textParts: ITextPart[] = [];
+
+  let localIndex: number = index;
+  let data: INewLineCurrentWidthAndTextPart | null = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, localIndex, sizesData);
+  let accumulatedWidth: number = 0;
+
+  while (data && (accumulatedWidth <= textBoxWidth) && !data.textPart.image) {
+    accumulatedWidth += data.currentWidth;
+    textParts.push(data.textPart);
+
+    localIndex += 1;
+
+    data = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, localIndex, sizesData);
+  }
+
+  return {
+    textParts
+  }
+}
+
+const computeY = (computedY: number, knifeBorderValue: number, textBox: ISizes, bottom: number, image?: ISentanceImage) => {
+  if (!image) {
+    return computedY;
+  }
+
+  if (image.fullInBox) {
+    return knifeBorderValue;
+  }
+
+  if (image.verticalCenter) {
+    return ((textBox.height + bottom + knifeBorderValue) / 2) - (image.height / 2);
+  }
+
+  if (image.bottom) {
+    return bottom + knifeBorderValue;
+  }
+
+  return computedY;
+}
+
 const getBiggestFontSize = (textRowData: ITextRowGenerateData, lineHeight: number): number => {
   if (!textRowData || !textRowData.textParts || !textRowData.textParts.length) {
     return 0;
@@ -659,7 +732,7 @@ const getBiggestFontSize = (textRowData: ITextRowGenerateData, lineHeight: numbe
   for (let i = 0; i < textRowData.textParts.length; i += 1) {
     const currentFontSize: number = Number(textRowData.textParts[i].fontSize);
     
-    if (!isNaN(currentFontSize) && currentFontSize > largestLineHeight) {
+    if (!isNaN(currentFontSize) && (currentFontSize > largestLineHeight)) {
       largestLineHeight = currentFontSize;
     }
   }

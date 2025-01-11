@@ -5,6 +5,8 @@ import { ITextPart } from "./text-part.interface";
 export interface ISentance {
   id: string;
   isCentered?: boolean;
+  isBottom?: boolean;
+  isVerticalCenter?: boolean;
   shouldTextTransfer?: boolean;
   newLineAutoPrefix?: string;
   image?: ISentanceImage;
@@ -18,4 +20,6 @@ export interface ISentanceImage {
   type: ImageTypeEnum;
   pageSizes: ISizes;
   fullInBox: boolean;
+  verticalCenter?: boolean;
+  bottom?: boolean;
 }
