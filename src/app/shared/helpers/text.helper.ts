@@ -212,7 +212,8 @@ export const collectTextGenerativeInstructions = async (
       fontSize: input.fontSize,
       paddingTop: input.pageNumbersPaddingTop,
       startFromPage: input.pageNumbersFromPage
-    }
+    },
+    headingPages: []
   };
 
   let left: number = input.left;
@@ -281,7 +282,7 @@ export const collectTextGenerativeInstructions = async (
         isCover ? 0 : currentPage,
         currentTextIndex,
         sizesResponse.data.data,
-        pdfGenerativeData.pages[isCover ? 0 : currentPage],
+        pdfGenerativeData,
         input.knifeBorderValue,
         input.bottom,
         input.lineHeight
@@ -376,7 +377,7 @@ export const writeTextInsideBox = async (
   currentPage: number,
   currentTextIndex: number[],
   sizesData: ISizesData,
-  pageGenerativeData: IPDFPageData,
+  pageGenerativeData: IPDFGenerativeData,
   knifeBorderValue: number,
   paddingBottom: number = 0,
   lineHeight?: number
@@ -394,11 +395,18 @@ export const writeTextInsideBox = async (
   const lastLineIndexMap: Record<number, number> = {};
   const cuttedLinesIndexMap: Record<number, number> = {};
 
+  let currentHeadingPage: number | null = null;
+
   for (let i = 0; i < allTextPartsWithDashes.length; i += 1) {
     const previousTextPart: ITextPart = allTextPartsWithDashes[i - 1];
     const data: INewLineCurrentWidthAndTextPart = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, i, sizesData) as INewLineCurrentWidthAndTextPart ;
     const currentTextPart: ITextPart = data.textPart;
     const previousText: string = previousTextPart ? previousTextPart.text : '';
+
+    if (currentTextPart.isHeading && ((currentHeadingPage === null) || (currentPage !== currentHeadingPage))) {
+      currentHeadingPage = currentPage;
+      pageGenerativeData.headingPages.push(currentPage + 1);
+    }
 
     currentWidth += data.currentWidth;
 
@@ -445,8 +453,8 @@ export const writeTextInsideBox = async (
       currentWidth = isNewLine ? 0 : (currentTextPart.sizes || {}).width as number;
 
       const metric: number = (currentHeight
-        + (getBiggestFontSize(textRowData[textRowIndex], currentLineHeight))
-        + ((getBiggestFontSize(getTextRowData(i, allTextPartsWithDashes, sizesData, textBox.width), currentLineHeight)))
+        + getBiggestFontSize(textRowData[textRowIndex], currentLineHeight)
+        + getBiggestFontSize(getTextRowData(i, allTextPartsWithDashes, sizesData, textBox.width), currentLineHeight)
       );
 
       if (i && (shouldJumpToTheNextPage || ((metric >= textBox.height)))) {
@@ -619,7 +627,7 @@ export const writeTextInsideBox = async (
 
       for (let k = 0; k < text.length; k += 1) {
         try {
-          pageGenerativeData.coordinateText.push({
+          pageGenerativeData.pages[currentPage].coordinateText.push({
             fontSize: textPartObject.fontSize || fontSize,
             text: text[k],
             page: currentPage,

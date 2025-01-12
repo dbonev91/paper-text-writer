@@ -9,6 +9,7 @@ export interface ITextPart {
   sizes?: ISizes;
   newLineAutoPrefix?: string;
   shouldStartOnTheNextPage?: boolean;
+  isHeading?: boolean;
   isNewSentanceStart?: boolean;
   isBold?: boolean;
   isItalic?: boolean;
