@@ -1,12 +1,13 @@
 import { PageNumberPlacementEnum } from "../enums/page-number-placement.enum";
 import { IFontData } from "./font-data.interface";
 import { ISizes } from './sizes.interface';
-import { ICoordinateText, ITextPart } from "./text-part.interface";
+import { ICoordinateText } from "./text-part.interface";
 
 export interface IPDFGenerativeData {
   pages: IPDFPageData[];
   generalSettings: IGeneralSettings;
   pageNumberSettings: IPageNumberSettings;
+  headingPages: number[];
 }
 
 export interface IPDFPageData {
