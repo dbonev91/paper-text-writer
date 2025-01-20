@@ -679,13 +679,15 @@ export const writeTextInsideBox = async (
 }
 
 const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number): number => {
+  const difference: number = Math.abs((rowsHeight[index] - rowsHeight[index - 1]));
+
   return (justifyGap * index)
     + (index ?
       (
         (sumArray(rowsHeight) / (rowsHeight.length - 1))
           + sumArray(rowsHeight.slice(0, index))
-          + Math.abs((rowsHeight[index] - rowsHeight[index - 1]))
-          - (sumArray(rowsHeight.slice(0, index)) / rowsHeight.length)
+          + difference
+          - (difference ? (sumArray(rowsHeight.slice(0, index)) / rowsHeight.length) : 0)
       ) :
       rowsHeight[index]
     );
