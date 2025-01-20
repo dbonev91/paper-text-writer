@@ -518,7 +518,7 @@ export const writeTextInsideBox = async (
     const textRow: ITextRowGenerateData = textRowData[i];
 
     const currentRowHeight: number = getBiggestFontSize(textRow, currentLineHeight);
-    currentRowHeight && allRowsHeight.push(currentRowHeight);
+    currentRowHeight && allRowsHeight.push(textRow?.image?.height || currentRowHeight);
     
     if (textRow.textParts[0] && (textRow.textParts[0].isVerticalCenter || textRow.textParts[0].isBottom)) {
       sequantVerticalAlignRowIndexMap[i] = getCurrentTop(i, currentLineHeight, 0, 0, textRowData, i - Object.keys(sequantVerticalAlignRowIndexMap).length);
@@ -554,7 +554,7 @@ export const writeTextInsideBox = async (
     justifyStep.push(difference / spacesCount);
   }
 
-  const verticalJustifyGapFull: number = textBox.height - ((textBox.top + (textBox.bottom as number)) + sumArray(allRowsHeight) + (knifeBorderValue * 2));
+  const verticalJustifyGapFull: number = textBox.height - (textBox.top + paddingBottom + (knifeBorderValue * 2));
   const verticalJustifyGap: number = verticalJustifyGapFull / (textRowData.length - 1);
 
   const verticalAlignedRows: number = Object.keys(sequantVerticalAlignRowIndexMap).length;
@@ -650,7 +650,7 @@ export const writeTextInsideBox = async (
               isBottom ?
                 ((textBox.height - verticalAlignedRowsFullHeight - sequantVerticalAlignRowIndexMap[i] - verticalAlignDifference)) + knifeBorderValue :
               isHorisontalJustify ?
-                (pageHeight - computeVerticalJustify(allRowsHeight, verticalJustifyGap, i, textBox.top) + knifeBorderValue) :
+                (pageHeight - computeVerticalJustify(allRowsHeight, verticalJustifyGap, i) + knifeBorderValue) :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + knifeBorderValue),
               knifeBorderValue,
               textBox,
@@ -678,10 +678,8 @@ export const writeTextInsideBox = async (
   return currentTextIndex;
 }
 
-const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number, paddingTop: number): number =>
-  ((justifyGap) * index) +
-  (paddingTop * (index)) +
-  ((index === (rowsHeight.length - 1)) ? (rowsHeight[index - 1] || rowsHeight[index]) : rowsHeight[index]);
+const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number): number =>
+  (justifyGap * index) + (index ? (sumArray(rowsHeight.slice(0, rowsHeight.length)) / (rowsHeight.length)) : rowsHeight[index]);
 
 const getTextWidthTextPartAndNewLine = (allTextPartsWithDashes: ITextPart[], index: number, sizesData: ISizesData): INewLineCurrentWidthAndTextPart | null => {
   let currentWidth: number = 0;
