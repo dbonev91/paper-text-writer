@@ -681,13 +681,14 @@ export const writeTextInsideBox = async (
 const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number): number => {
   return (justifyGap * index)
     + (index ?
-        (
-          (sumArray(rowsHeight) / (rowsHeight.length - 1))
-            + sumArray(rowsHeight.slice(0, index))
-            + (rowsHeight[index] / 2)
-        ) :
-        rowsHeight[index]
-      );
+      (
+        (sumArray(rowsHeight) / (rowsHeight.length - 1))
+          + sumArray(rowsHeight.slice(0, index))
+          + Math.abs((rowsHeight[index] - rowsHeight[index - 1]))
+          - (sumArray(rowsHeight.slice(0, index)) / rowsHeight.length)
+      ) :
+      rowsHeight[index]
+    );
 }
 
 const getTextWidthTextPartAndNewLine = (allTextPartsWithDashes: ITextPart[], index: number, sizesData: ISizesData): INewLineCurrentWidthAndTextPart | null => {
