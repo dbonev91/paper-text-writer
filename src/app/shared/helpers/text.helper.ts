@@ -646,9 +646,9 @@ export const writeTextInsideBox = async (
                 ((hasGap ? (rawPrefixSpace + left) : (prefixSpace + left)) + accumulatedX),
             y: computeY(
               isVerticalCenter ?
-                (((textBox.height / 2) + (verticalAlignedRowsFullHeight / 2) - sequantVerticalAlignRowIndexMap[i] + verticalAlignDifference)) + knifeBorderValue :
+                ((textBox.height / 2) + (verticalAlignedRowsFullHeight / 2) - sequantVerticalAlignRowIndexMap[i] + verticalAlignDifference) + knifeBorderValue :
               isBottom ?
-                ((textBox.height - verticalAlignedRowsFullHeight - sequantVerticalAlignRowIndexMap[i] - verticalAlignDifference)) + knifeBorderValue :
+                bottom + (verticalAlignedRowsFullHeight - sequantVerticalAlignRowIndexMap[i] - verticalAlignDifference) + knifeBorderValue :
               isHorisontalJustify ?
                 (pageHeight - computeVerticalJustify(allRowsHeight, verticalJustifyGap, i) + knifeBorderValue) :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + knifeBorderValue),
