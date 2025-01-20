@@ -679,7 +679,7 @@ export const writeTextInsideBox = async (
 }
 
 const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number): number =>
-  (justifyGap * index) + (index ? (sumArray(rowsHeight.slice(0, rowsHeight.length)) / (rowsHeight.length)) : rowsHeight[index]);
+  (justifyGap * index) + (index ? (sumArray(rowsHeight) / rowsHeight.length) : rowsHeight[index]);
 
 const getTextWidthTextPartAndNewLine = (allTextPartsWithDashes: ITextPart[], index: number, sizesData: ISizesData): INewLineCurrentWidthAndTextPart | null => {
   let currentWidth: number = 0;
