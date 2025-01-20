@@ -554,7 +554,7 @@ export const writeTextInsideBox = async (
     justifyStep.push(difference / spacesCount);
   }
 
-  const verticalJustifyGapFull: number = textBox.height - (textBox.top + paddingBottom + (knifeBorderValue * 2));
+  const verticalJustifyGapFull: number = textBox.height - (textBox.top + sumArray(allRowsHeight) + paddingBottom + (knifeBorderValue * 2));
   const verticalJustifyGap: number = verticalJustifyGapFull / (textRowData.length - 1);
 
   const verticalAlignedRows: number = Object.keys(sequantVerticalAlignRowIndexMap).length;
@@ -678,8 +678,17 @@ export const writeTextInsideBox = async (
   return currentTextIndex;
 }
 
-const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number): number =>
-  (justifyGap * index) + (index ? (sumArray(rowsHeight) / rowsHeight.length) : rowsHeight[index]);
+const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number): number => {
+  return (justifyGap * index)
+    + (index ?
+        (
+          (sumArray(rowsHeight) / (rowsHeight.length - 1))
+            + sumArray(rowsHeight.slice(0, index))
+            + (rowsHeight[index] / 2)
+        ) :
+        rowsHeight[index]
+      );
+}
 
 const getTextWidthTextPartAndNewLine = (allTextPartsWithDashes: ITextPart[], index: number, sizesData: ISizesData): INewLineCurrentWidthAndTextPart | null => {
   let currentWidth: number = 0;
