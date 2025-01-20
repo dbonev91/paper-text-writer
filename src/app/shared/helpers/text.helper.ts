@@ -18,6 +18,7 @@ import { directoryPathToFontData } from "./object/object.helper";
 import { IMeasureAllTextPartsRequestData } from "../models/measure-all-text-parts-request-data.interface";
 import { ISizesData, ISizesResponse } from "../models/sizes-response.interface";
 import { INewLineCurrentWidthAndTextPart } from "../models/new-line-current-width.interface";
+import { sumArray } from "./number/number.helper";
 
 const marginPageSentanceMap: Record<number, Record<string, number>> = {};
 const pdfGenerationMap: Record<string, IPDFGenerativeData> = {};
@@ -243,7 +244,8 @@ export const collectTextGenerativeInstructions = async (
         top: input.top,
         left,
         width: input.width - (left + right),
-        height: input.height - input.bottom
+        height: input.height - input.bottom,
+        bottom: input.bottom
       };
   
       pdfGenerativeData.pages[currentPage] = {
@@ -396,6 +398,7 @@ export const writeTextInsideBox = async (
   const cuttedLinesIndexMap: Record<number, number> = {};
 
   let currentHeadingPage: number | null = null;
+  let allRowsHeight: number[] = [];
 
   for (let i = 0; i < allTextPartsWithDashes.length; i += 1) {
     const previousTextPart: ITextPart = allTextPartsWithDashes[i - 1];
@@ -513,10 +516,13 @@ export const writeTextInsideBox = async (
 
   for (let i = 0; i < textRowData.length; i += 1) {
     const textRow: ITextRowGenerateData = textRowData[i];
+
+    const currentRowHeight: number = getBiggestFontSize(textRow, currentLineHeight);
+    currentRowHeight && allRowsHeight.push(currentRowHeight);
     
     if (textRow.textParts[0] && (textRow.textParts[0].isVerticalCenter || textRow.textParts[0].isBottom)) {
       sequantVerticalAlignRowIndexMap[i] = getCurrentTop(i, currentLineHeight, 0, 0, textRowData, i - Object.keys(sequantVerticalAlignRowIndexMap).length);
-      verticalAlignedRowsFullHeight += textRow?.image?.height || getBiggestFontSize(textRow, currentLineHeight);
+      verticalAlignedRowsFullHeight += textRow?.image?.height || currentRowHeight;
     }
 
     let textWidth: number = 0;
@@ -547,6 +553,9 @@ export const writeTextInsideBox = async (
 
     justifyStep.push(difference / spacesCount);
   }
+
+  const verticalJustifyGapFull: number = textBox.height - ((textBox.top + (textBox.bottom as number)) + sumArray(allRowsHeight) + (knifeBorderValue * 2));
+  const verticalJustifyGap: number = verticalJustifyGapFull / (textRowData.length - 1);
 
   const verticalAlignedRows: number = Object.keys(sequantVerticalAlignRowIndexMap).length;
   const verticalAlignDifference: number = verticalAlignedRows ? (verticalAlignedRowsFullHeight / verticalAlignedRows) : 0;
@@ -640,6 +649,8 @@ export const writeTextInsideBox = async (
                 (((textBox.height / 2) + (verticalAlignedRowsFullHeight / 2) - sequantVerticalAlignRowIndexMap[i] + verticalAlignDifference)) + knifeBorderValue :
               isBottom ?
                 ((textBox.height - verticalAlignedRowsFullHeight - sequantVerticalAlignRowIndexMap[i] - verticalAlignDifference)) + knifeBorderValue :
+              isHorisontalJustify ?
+                (pageHeight - computeVerticalJustify(allRowsHeight, verticalJustifyGap, i, textBox.top) + knifeBorderValue) :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + knifeBorderValue),
               knifeBorderValue,
               textBox,
@@ -665,6 +676,18 @@ export const writeTextInsideBox = async (
   }
 
   return currentTextIndex;
+}
+
+const computeVerticalJustify = (rowsHeight: number[], justifyGap: number, index: number, paddingTop: number): number => {
+  let plus: number;
+
+  if (index === (rowsHeight.length - 1)) {
+    plus = rowsHeight[index - 1] || rowsHeight[index];
+  } else {
+    plus = rowsHeight[index];
+  }
+  
+  return ((justifyGap) * index) + (paddingTop * (index)) + plus;
 }
 
 const getTextWidthTextPartAndNewLine = (allTextPartsWithDashes: ITextPart[], index: number, sizesData: ISizesData): INewLineCurrentWidthAndTextPart | null => {

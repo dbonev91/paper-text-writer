@@ -3,4 +3,5 @@ export interface ICoordinate {
   left: number;
   width: number;
   height: number;
+  bottom?: number;
 }
