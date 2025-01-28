@@ -23,6 +23,8 @@ import { sumArray } from "./number/number.helper";
 const marginPageSentanceMap: Record<number, Record<string, number>> = {};
 const pdfGenerationMap: Record<string, IPDFGenerativeData> = {};
 
+let currentHeadingPage: number | null = null;
+
 export const prepareAllTextWithDashes = (sentences: ISentance[]): ITextPart[] => {
   const groupedNewLinesMap: ITextPart[][] = [];
 
@@ -225,6 +227,8 @@ export const collectTextGenerativeInstructions = async (
 
   const isCover: boolean = Boolean(textRectangles && textRectangles.length);
 
+  currentHeadingPage = null;
+
   // TODO: for canvas should variate for each while iteration
   // the reason is it multiplys the margin
   // if same text is on two or more pages
@@ -399,7 +403,6 @@ export const writeTextInsideBox = async (
   const lastLineIndexMap: Record<number, number> = {};
   const cuttedLinesIndexMap: Record<number, number> = {};
 
-  let currentHeadingPage: number | null = null;
   let allRowsHeight: number[] = [];
 
   for (let i = 0; i < allTextPartsWithDashes.length; i += 1) {
@@ -413,7 +416,7 @@ export const writeTextInsideBox = async (
 
     const previousText: string = previousTextPart ? previousTextPart.text : '';
 
-    if (currentTextPart.isHeading && ((currentHeadingPage === null) || (currentPage !== currentHeadingPage))) {
+    if ((currentTextPart.text !== NEW) && currentTextPart.isHeading && ((currentHeadingPage === null) || (currentPage !== currentHeadingPage))) {
       currentHeadingPage = currentPage;
       pageGenerativeData.headingPages.push(currentPage + 1);
     }
