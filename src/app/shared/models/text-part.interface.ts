@@ -11,6 +11,7 @@ export interface ITextPart {
   shouldStartOnTheNextPage?: boolean;
   isHeading?: boolean;
   isNewSentanceStart?: boolean;
+  horizontalJustify?: boolean;
   isBold?: boolean;
   isItalic?: boolean;
   isCentered?: boolean;

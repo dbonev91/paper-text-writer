@@ -162,7 +162,8 @@ export const collectTextGenerativeInstructions = async (
         text: formatSpecialSymbolsText(textPart.text, EMPTY_SPECIAL_SYMBOL_VALUE_MAP),
         isBold: textPart.isBold,
         isItalic: textPart.isItalic,
-        fontSize: textPart.fontSize || input.fontSize
+        fontSize: textPart.fontSize || input.fontSize,
+        horizontalJustify: textPart.horizontalJustify
       }
     }),
     fontData,
@@ -391,6 +392,7 @@ export const writeTextInsideBox = async (
   let textRowIndex: number = 0;
   let currentWidth: number = 0;
   let currentHeight: number = startHeight || textBox.top;
+  let isHorizontalJustify: boolean = false;
   const currentLineHeight: number = (lineHeight || fontSize);
 
   const textRowData: ITextRowGenerateData[] = [];
@@ -404,6 +406,11 @@ export const writeTextInsideBox = async (
     const previousTextPart: ITextPart = allTextPartsWithDashes[i - 1];
     const data: INewLineCurrentWidthAndTextPart = getTextWidthTextPartAndNewLine(allTextPartsWithDashes, i, sizesData) as INewLineCurrentWidthAndTextPart ;
     const currentTextPart: ITextPart = data.textPart;
+
+    if (!isHorizontalJustify && currentTextPart.horizontalJustify) {
+      isHorizontalJustify = currentTextPart.horizontalJustify;
+    }
+
     const previousText: string = previousTextPart ? previousTextPart.text : '';
 
     if (currentTextPart.isHeading && ((currentHeadingPage === null) || (currentPage !== currentHeadingPage))) {
@@ -649,7 +656,7 @@ export const writeTextInsideBox = async (
                 ((textBox.height / 2) + (verticalAlignedRowsFullHeight / 2) - sequantVerticalAlignRowIndexMap[i] + verticalAlignDifference) + knifeBorderValue :
               isBottom ?
                 bottom + (verticalAlignedRowsFullHeight - sequantVerticalAlignRowIndexMap[i] - verticalAlignDifference) + knifeBorderValue :
-              isHorisontalJustify ?
+              isHorizontalJustify ?
                 (pageHeight - computeVerticalJustify(allRowsHeight, verticalJustifyGap, i) + knifeBorderValue) :
                 (pageHeight + paddingBottom - currentTop - (textRowData[i]?.image?.height || getBiggestFontSize(textRowData[i], currentLineHeight)) + knifeBorderValue),
               knifeBorderValue,
